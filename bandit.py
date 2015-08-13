@@ -1,3 +1,5 @@
+import bisect
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -19,21 +21,17 @@ class Bandit(object):
         return np.argmax(self.q_star)
 
 class Agent(object):
-    def __init__(self, bandit, epsilon=0.1, Q_init=None, alpha=None):
+    def __init__(self, bandit, epsilon=0.1, tau=None, Q_init=None, alpha=None):
         self.epsilon = epsilon
+        self.tau = tau
         self.bandit = bandit
-        n =  bandit.n
-        self.n = n
+        self.n = bandit.n
         self.Q_init = Q_init
         self.alpha = alpha
         self.reset()
         
     def run(self):
-        # Choose action
-        if np.random.uniform() < self.epsilon:
-            action = np.random.choice(self.bandit.n)
-        else:
-            action = np.argmax(self.Q)
+        action = self.choose_action()
         reward = self.bandit.reward(action)
         
         # Update action-value
@@ -46,6 +44,19 @@ class Agent(object):
         correct = (action == self.bandit.optimal_action()) * 100
         self.optimal_actions.append(correct)
 
+    def choose_action_greedy(self):
+        if np.random.uniform() < self.epsilon:
+            action = np.random.choice(self.bandit.n)
+        else:
+            action = np.argmax(self.Q)
+        return action
+
+    def choose_action_softmax(self):
+        p = softmax(self.Q, self.tau)
+        actions = range(self.n)
+        action = choose(actions, p)
+        return action
+        
     def update_action_value_sample_average(self, action, reward):
         k = self.k_actions[action]
         self.Q[action] +=  (1 / k) * (reward - self.Q[action])
@@ -59,10 +70,19 @@ class Agent(object):
             self.Q = self.Q_init * np.ones(self.n)
         else: # init with small random numbers to avoid ties
             self.Q = np.random.uniform(0, 1e-4, self.n)
+
         if self.alpha:
             self.update_action_value = self.update_action_value_constant_alpha
         else:
             self.update_action_value = self.update_action_value_sample_average
+
+        if self.epsilon is not None:
+            self.choose_action = self.choose_action_greedy
+        elif self.tau:
+            self.choose_action = self.choose_action_softmax
+        else:
+            print('Error: epsilon or tau must be set')
+            sys.exit(-1)
 
         self.rewards = []
         self.rewards_seq = []
@@ -72,9 +92,25 @@ class Agent(object):
         self.average_reward = 0
         self.optimal_actions = []
 
+def softmax(Qs, tau):
+    """Compute softmax probabilities for all actions."""
+    num = np.exp(Qs / tau)
+    den = np.exp(Qs / tau).sum()
+    return num / den
 
-def run_experiment(n_bandits, steps, epsilon, Q_init=None, alpha=None):
-    '''Run a 10-bandit simulation many times.
+def choose(a, p):
+    """Choose randomly an item from `a` with pmf given by p.
+    a : list
+    p : probability mass function
+    """
+    intervals = [sum(p[:i]) for i in range(len(p))]
+    item = a[bisect.bisect(intervals, np.random.rand()) - 1]
+    return item
+
+
+def run_experiment(n_bandits, steps, epsilon=None, tau=None, Q_init=None,
+                   alpha=None):
+    """Run a 10-bandit simulation many times.
 
     Parameters
     ----------
@@ -82,8 +118,11 @@ def run_experiment(n_bandits, steps, epsilon, Q_init=None, alpha=None):
         Number of 10-armed bandits to run.
     steps : int
         Number of steps to run each simulation.
-    epsilon : float
-        Epsilon used by the agent.
+    epsilon : float, optional
+        Epsilon used by the agent in case actions are selected by
+        epsilon-greedy.
+    tau : float, optional
+        Tau used by the agent in case actions are selected by softmax.
     Q_init : float, optional
         Initial action-value estimate.
     alpha : float, optional
@@ -96,12 +135,13 @@ def run_experiment(n_bandits, steps, epsilon, Q_init=None, alpha=None):
     percentage_optimals: array_like
         Cumulative percentage of times that the optimal actio is selected,
         averaged over all the `n_bandits` simulations.
-    '''
+    """
     average_rewards = np.zeros((n_bandits, steps))
     percentage_optimals = np.zeros((n_bandits, steps))
     for i in range(n_bandits):
         bandit = Bandit()
-        agent = Agent(bandit, epsilon, Q_init, alpha)
+        agent = Agent(bandit, epsilon=epsilon, tau=tau, Q_init=Q_init,
+                      alpha=alpha)
         for j in range(steps):
             agent.run()
         average_rewards[i,:] = agent.rewards_seq
@@ -110,7 +150,8 @@ def run_experiment(n_bandits, steps, epsilon, Q_init=None, alpha=None):
          
 
 def figure_2_1():
-    '''Replicate figure 2.1 of Sutton and Barto's book.'''
+    """Replicate figure 2.1 of Sutton and Barto's book."""
+    print('Running figure 2.1 simulation ...')
     np.random.seed(1234)
     epsilons = (0.1, 0.01, 0)
     ars, pos = [], []
@@ -136,13 +177,15 @@ def figure_2_1():
     plt.show()
 
 def figure_2_4():
-    '''Replicate figure 2.4 of Sutton and Barto's book.'''
+    """Replicate figure 2.4 of Sutton and Barto's book."""
+    print('Running figure 2.4 simulation ...')
     np.random.seed(1234)
     epsilons = (0.1, 0)
     q_inits = (0, 5)
     ars, pos = [], []
     for epsilon, q_init in zip(epsilons, q_inits):
-        ar, po = run_experiment(2000, 1000, epsilon, q_init, alpha=0.1)
+        ar, po = run_experiment(2000, 1000, epsilon=epsilon, Q_init=q_init,
+                                alpha=0.1)
         ars.append(np.mean(ar, 0))
         pos.append(np.mean(po, 0))
         
@@ -163,5 +206,32 @@ def figure_2_4():
     plt.savefig('fig_2_4.pdf')
     plt.show()
 
+def softmax_experiment():
+    """Run softmax experiment."""
+    print('Running softmax experiment.')
+    taus = [0.01, 0.1, 1]
+    ars, pos = [], []
+    for tau in taus:
+        ar, po = run_experiment(2000, 1000, tau=tau, alpha=0.1)
+        ars.append
+        ars.append(np.mean(ar, 0))
+        pos.append(np.mean(po, 0))
+        
+    # plot the results
+    plt.close('all')
+    f, (ax1, ax2) = plt.subplots(2)
+    for i,tau in enumerate(taus):
+        ax1.plot(ars[i].T, label='$\\tau$ = %.2f' % tau)
+        ax2.plot(pos[i].T, label='$\\tau$ = %.2f' % tau)
+    ax1.legend(loc='lower right')
+    ax1.set_ylabel('Average reward')
+    ax1.set_xlim(xmin=-10)
+    ax2.legend(loc='lower right')
+    ax2.set_xlabel('Plays')
+    ax2.set_ylabel('% Optimal action')
+    ax2.set_xlim(xmin=-20)
+    plt.savefig('softmax_experiment.pdf')
+    plt.show()
+
 if __name__ == '__main__':
-    figure_2_4()
+    softmax_experiment()
