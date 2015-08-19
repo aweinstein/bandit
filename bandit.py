@@ -21,7 +21,7 @@ class Bandit(object):
         return np.argmax(self.q_star)
 
 class Agent(object):
-    def __init__(self, bandit, epsilon=0.1, tau=None, Q_init=None, alpha=None):
+    def __init__(self, bandit, epsilon=None, tau=None, Q_init=None, alpha=None):
         self.epsilon = epsilon
         self.tau = tau
         self.bandit = bandit
@@ -98,6 +98,7 @@ def softmax(Qs, tau):
     den = np.exp(Qs / tau).sum()
     return num / den
 
+# TODO: Replace by np.random.choice with parameter `p`
 def choose(a, p):
     """Choose randomly an item from `a` with pmf given by p.
     a : list
