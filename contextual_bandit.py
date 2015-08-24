@@ -1,4 +1,4 @@
-import bisect
+from collections import defaultdict
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,11 +8,11 @@ mpl.rcParams['lines.linewidth'] = 2
 
 class ContextualBandit(object):
     def __init__(self):
-        # Contexts and their probabilities of wining
+        # Contexts and their probabilities of winning
         self.contexts = {'punishment': 0.2,
                          'neutral': 0.5,
                          'reward': 0.8}
-        self.actions = (3, 8, 17, 23)
+        self.actions = (23, 14, 8, 3)
         self.n = len(self.actions)
         self.get_context()
 
@@ -58,11 +58,8 @@ class ContextualAgent(object):
         self.update_action_value(context, action, reward)
  
         # Keep track of performance
-        # self.rewards_seq.append(reward)
-        # self.actions.append(action)
-        # self.k_reward += 1
-        # correct = (action == self.bandit.optimal_action()) * 100
-        # self.optimal_actions.append(correct)
+        self.rewards_seq[context].append(reward)
+        self.actions_seq[context].append(action)
 
     def choose_action_greedy(self, context):  
         if np.random.uniform() < self.epsilon:
@@ -74,13 +71,14 @@ class ContextualAgent(object):
     def choose_action_softmax(self, context):
         p = softmax(self.Q[context], self.tau)
         actions = range(self.n)
-        action = choose(actions, p)
+        action = np.random.choise(actions, p=p)
         return action
         
     def update_action_value_sample_average(self, context, action, reward):
-        k = self.k_actions[context, action]
-        self.Q[context][action] +=  (1 / k) * (reward - self.Q[action])
-        self.k_actions[context, action] += 1
+        k = self.k_actions[context][action]
+        self.Q[context][action] +=  ((1 / k) *
+                                     (reward - self.Q[context][action]))
+        self.k_actions[context][action] += 1
 
     def update_action_value_constant_alpha(self, context, action, reward):
         error = reward - self.Q[context][action]
@@ -88,11 +86,14 @@ class ContextualAgent(object):
 
     def reset(self):
         self.Q = {}
+        self.k_actions = {}
         for context in self.contexts:
             if self.Q_init:
                 self.Q[context] = self.Q_init * np.ones(self.n)
             else: # init with small random numbers to avoid ties
                 self.Q[context] = np.random.uniform(0, 1e-4, self.n)
+                    # number of steps for each action
+            self.k_actions[context] = np.ones(self.n)
 
         if self.alpha:
             self.update_action_value = self.update_action_value_constant_alpha
@@ -103,45 +104,47 @@ class ContextualAgent(object):
 
         if self.epsilon is not None:
             self.choose_action = self.choose_action_greedy
-            print('Using epsilon-greedy.')
+            print('Using epsilon-greedy with epsilon ' 
+                  '{:.2f}.'.format(self.epsilon))
         elif self.tau:
             self.choose_action = self.choose_action_softmax
             print('Using softmax.')
         else:
             print('Error: epsilon or tau must be set')
             sys.exit(-1)
+            
+        self.rewards_seq = defaultdict(list)
+        self.actions_seq = defaultdict(list)
 
-        # number of steps for each action
-        self.k_actions = np.ones((len(self.contexts), self.n))
 
-        # self.rewards = []
-        # self.rewards_seq = []
-        # self.actions = []
-        # self.k_reward = 1
-        # self.average_reward = 0
-        # self.optimal_actions = []
-        
 def softmax(Qs, tau):
     """Compute softmax probabilities for all actions."""
     num = np.exp(Qs / tau)
     den = np.exp(Qs / tau).sum()
     return num / den
 
-# TODO: Replace by np.random.choice with parameter `p`
-def choose(a, p):
-    """Choose randomly an item from `a` with pmf given by p.
-    a : list
-    p : probability mass function
+def sanity_check():
+    """Check that the interection and bookkeeping is OK.
+
+    Set the agent to with epsilon equal to 0.99. This makes 
+    almost all the actions to be selected uniformly at random.
+    The action value for each context should follow the expected
+    reward for each context.
     """
-    intervals = [sum(p[:i]) for i in range(len(p))]
-    item = a[bisect.bisect(intervals, np.random.rand()) - 1]
-    return item
-
-
-if __name__ == '__main__':
     print('Running a contextual bandit experiment')
     cb = ContextualBandit()
-    ca = ContextualAgent(cb, tau=0.1, alpha=0.1)
-    for _ in range(10):
+    #ca = ContextualAgent(cb, tau=0.1, alpha=0.1)
+    ca = ContextualAgent(cb, epsilon=0.99)
+    steps = 10000
+    for _ in range(steps):
         ca.run()
-    
+    rewards = np.array(cb.actions)
+    print()
+    for context, prob in cb.contexts.items():
+        print(context, ': ')
+        print('samp : ', ca.Q[context])
+        print(' teo : ', prob * rewards - (1 - prob) * rewards)
+        print()
+
+if __name__ == '__main__':
+    sanity_check()
