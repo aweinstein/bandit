@@ -1,4 +1,3 @@
-import bisect
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,7 +53,7 @@ class Agent(object):
     def choose_action_softmax(self):
         p = softmax(self.Q, self.tau)
         actions = range(self.n)
-        action = choose(actions, p)
+        action = np.random.choice(actions, p=p)
         return action
         
     def update_action_value_sample_average(self, action, reward):
