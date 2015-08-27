@@ -97,17 +97,6 @@ def softmax(Qs, tau):
     den = np.exp(Qs / tau).sum()
     return num / den
 
-# TODO: Replace by np.random.choice with parameter `p`
-def choose(a, p):
-    """Choose randomly an item from `a` with pmf given by p.
-    a : list
-    p : probability mass function
-    """
-    intervals = [sum(p[:i]) for i in range(len(p))]
-    item = a[bisect.bisect(intervals, np.random.rand()) - 1]
-    return item
-
-
 def run_experiment(n_bandits, steps, epsilon=None, tau=None, Q_init=None,
                    alpha=None):
     """Run a 10-bandit simulation many times.

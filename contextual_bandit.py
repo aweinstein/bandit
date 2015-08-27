@@ -77,7 +77,7 @@ class ContextualAgent(object):
     def choose_action_softmax(self, context):
         p = softmax(self.Q[context], self.tau)
         actions = range(self.n)
-        action = np.random.choise(actions, p=p)
+        action = np.random.choice(actions, p=p)
         return action
         
     def update_action_value_sample_average(self, context, action, reward):
@@ -114,7 +114,7 @@ class ContextualAgent(object):
                   '{:.2f}.'.format(self.epsilon))
         elif self.tau:
             self.choose_action = self.choose_action_softmax
-            print('Using softmax.')
+            print('Using softmax with tau {:.2f}'.format(self.tau))
         else:
             print('Error: epsilon or tau must be set')
             sys.exit(-1)
@@ -155,5 +155,19 @@ def sanity_check():
         print()
     globals().update(locals())
 
+def run_softmax_experiment():
+    """Run experiment with agent using softmax update rule."""
+    print('Running a contextual bandit experiment')
+    cb = ContextualBandit()
+    ca = ContextualAgent(cb, tau=0.01, alpha=0.1)
+    steps = 300
+    for _ in range(steps):
+        ca.run()
+    df = DataFrame(ca.log, columns=('context', 'action', 'reward', 'Q(c,a)'))
+    fn = 'softmax_experiment.csv'
+    df.to_csv(fn, index=False)
+    print('Sequence written in', fn)
+    globals().update(locals())
+
 if __name__ == '__main__':
-    sanity_check()
+    run_softmax_experiment()
