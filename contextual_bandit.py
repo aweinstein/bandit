@@ -131,7 +131,7 @@ def softmax(Qs, tau):
 def sanity_check():
     """Check that the interaction and bookkeeping is OK.
 
-    Set the agent to with epsilon equal to 0.99. This makes 
+    Set the agent to epsilon equal to 0.99. This makes 
     almost all the actions to be selected uniformly at random.
     The action value for each context should follow the expected
     reward for each context.
