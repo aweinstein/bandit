@@ -3,6 +3,10 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import pandas as pd
+from pandas import DataFrame
+
+
 plt.style.use('ggplot')
 mpl.rcParams['lines.linewidth'] = 2
 
@@ -58,8 +62,10 @@ class ContextualAgent(object):
         self.update_action_value(context, action, reward)
  
         # Keep track of performance
-        self.rewards_seq[context].append(reward)
-        self.actions_seq[context].append(action)
+        self.log['context'].append(context)
+        self.log['reward'].append(reward)
+        self.log['action'].append(self.actions[action])
+        self.log['Q(c,a)'].append(self.Q[context][action])
 
     def choose_action_greedy(self, context):  
         if np.random.uniform() < self.epsilon:
@@ -113,8 +119,7 @@ class ContextualAgent(object):
             print('Error: epsilon or tau must be set')
             sys.exit(-1)
             
-        self.rewards_seq = defaultdict(list)
-        self.actions_seq = defaultdict(list)
+        self.log = {'context':[], 'reward':[], 'action':[], 'Q(c,a)':[]}
 
 
 def softmax(Qs, tau):
@@ -124,7 +129,7 @@ def softmax(Qs, tau):
     return num / den
 
 def sanity_check():
-    """Check that the interection and bookkeeping is OK.
+    """Check that the interaction and bookkeeping is OK.
 
     Set the agent to with epsilon equal to 0.99. This makes 
     almost all the actions to be selected uniformly at random.
@@ -133,18 +138,22 @@ def sanity_check():
     """
     print('Running a contextual bandit experiment')
     cb = ContextualBandit()
-    #ca = ContextualAgent(cb, tau=0.1, alpha=0.1)
     ca = ContextualAgent(cb, epsilon=0.99)
     steps = 10000
     for _ in range(steps):
         ca.run()
     rewards = np.array(cb.actions)
+    df = DataFrame(ca.log, columns=('context', 'action', 'reward', 'Q(c,a)'))
+    fn = 'sanity_check.csv'
+    df.to_csv(fn, index=False)
+    print('Sequence written in', fn)
     print()
     for context, prob in cb.contexts.items():
         print(context, ': ')
         print('samp : ', ca.Q[context])
         print(' teo : ', prob * rewards - (1 - prob) * rewards)
         print()
+    globals().update(locals())
 
 if __name__ == '__main__':
     sanity_check()
