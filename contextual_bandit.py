@@ -1,12 +1,13 @@
-from collections import defaultdict
+from itertools import product
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import pandas as pd
 from pandas import DataFrame
+import pandas as pd
+from joblib import Parallel, delayed
 
-
+pd.options.display.float_format = '{:.2f}'.format
 plt.style.use('ggplot')
 mpl.rcParams['lines.linewidth'] = 2
 
@@ -42,7 +43,8 @@ class ContextualBandit(object):
         return r
         
 class ContextualAgent(object):
-    def __init__(self, bandit, epsilon=None, tau=None, Q_init=None, alpha=None):
+    def __init__(self, bandit, epsilon=None, tau=None, Q_init=None, alpha=None,
+                 verbose=False):
         self.epsilon = epsilon
         self.tau = tau
         self.bandit = bandit
@@ -51,6 +53,7 @@ class ContextualAgent(object):
         self.n = bandit.n
         self.Q_init = Q_init
         self.alpha = alpha
+        self.verbose = verbose
         self.reset()
         
     def run(self):
@@ -65,7 +68,10 @@ class ContextualAgent(object):
         self.log['context'].append(context)
         self.log['reward'].append(reward)
         self.log['action'].append(self.actions[action])
-        self.log['Q(c,a)'].append(self.Q[context][action])
+        self.log['Q(c,23)'].append(self.Q[context][0])
+        self.log['Q(c,14)'].append(self.Q[context][1])
+        self.log['Q(c,8)'].append(self.Q[context][2])
+        self.log['Q(c,3)'].append(self.Q[context][3])
 
     def choose_action_greedy(self, context):  
         if np.random.uniform() < self.epsilon:
@@ -103,23 +109,29 @@ class ContextualAgent(object):
 
         if self.alpha:
             self.update_action_value = self.update_action_value_constant_alpha
-            print('Using update rule with alpha {:.2f}.'.format(self.alpha))
+            if self.verbose:
+                print('Using update rule with alpha {:.2f}.'.format(
+                    self.alpha))
         else:
             self.update_action_value = self.update_action_value_sample_average
-            print('Using sample average update rule.')
+            if self.verbose:
+                print('Using sample average update rule.')
 
         if self.epsilon is not None:
             self.choose_action = self.choose_action_greedy
-            print('Using epsilon-greedy with epsilon ' 
-                  '{:.2f}.'.format(self.epsilon))
+            if self.verbose:
+                print('Using epsilon-greedy with epsilon ' 
+                      '{:.2f}.'.format(self.epsilon))
         elif self.tau:
             self.choose_action = self.choose_action_softmax
-            print('Using softmax with tau {:.2f}'.format(self.tau))
+            if self.verbose:
+                print('Using softmax with tau {:.2f}'.format(self.tau))
         else:
             print('Error: epsilon or tau must be set')
             sys.exit(-1)
             
-        self.log = {'context':[], 'reward':[], 'action':[], 'Q(c,a)':[]}
+        self.log = {'context':[], 'reward':[], 'action':[], 
+                    'Q(c,23)':[], 'Q(c,14)':[], 'Q(c,8)':[], 'Q(c,3)': []}
 
 
 def softmax(Qs, tau):
@@ -155,19 +167,52 @@ def sanity_check():
         print()
     globals().update(locals())
 
-def run_softmax_experiment():
+def run_single_softmax_experiment(tau, alpha):
     """Run experiment with agent using softmax update rule."""
+    np.random.seed(1234)
     print('Running a contextual bandit experiment')
     cb = ContextualBandit()
-    ca = ContextualAgent(cb, tau=0.01, alpha=0.1)
+    ca = ContextualAgent(cb, tau=tau, alpha=alpha)
     steps = 300
+    
     for _ in range(steps):
         ca.run()
-    df = DataFrame(ca.log, columns=('context', 'action', 'reward', 'Q(c,a)'))
+    df = DataFrame(ca.log, columns=('context', 'action', 'reward', 'Q(c,23)', 
+                                    'Q(c,14)', 'Q(c,8)', 'Q(c,3)'))
     fn = 'softmax_experiment.csv'
-    df.to_csv(fn, index=False)
-    print('Sequence written in', fn)
+    #df.to_csv(fn, index=False)
+    #print('Sequence written in', fn)
+    print(df)
+    print(df[df['context']=='reward'].tail(10))
+    print(df[df['context']=='neutral'].tail(10))
+    print(df[df['context']=='punishment'].tail(10))
     globals().update(locals())
 
+def softmax_trial(tau, alpha):
+    cb = ContextualBandit()
+    trials = 100
+    steps = 300
+    reward_trials = np.zeros(trials)
+    for i in range(trials):
+        ca = ContextualAgent(cb, tau=tau, alpha=alpha)
+        for _ in range(steps):
+            ca.run()
+        reward_trials[i] = sum(ca.log['reward'])
+    return (tau, alpha, reward_trials.mean(), reward_trials.std())
+    
+def run_grid_search_softmax_exp():
+    """Grid search of optimal tau and alpha."""
+    print('Running a contextual bandit experiment')
+    taus = [0.1, 1, 2, 3, 5]
+    alphas = [0.01, 0.05, 0.1, 0.2]
+    res = Parallel(n_jobs=1, verbose=10)(delayed(softmax_trial)
+                                         (tau, alpha) for (tau, alpha) in
+                                         product(taus, alphas))
+    ps = ('tau', 'alpha', 'tot_reward_mean', 'tot_reward_std')
+    df = DataFrame(dict([(k, [r[i] for r in res]) for i,k in enumerate(ps)]),
+                    columns=ps)
+    print(df)
+    globals().update(locals())
+    
 if __name__ == '__main__':
-    run_softmax_experiment()
+    run_grid_search_softmax_exp()
