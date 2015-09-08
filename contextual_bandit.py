@@ -169,7 +169,6 @@ def sanity_check():
 
 def run_single_softmax_experiment(tau, alpha):
     """Run experiment with agent using softmax update rule."""
-    np.random.seed(1234)
     print('Running a contextual bandit experiment')
     cb = ContextualBandit()
     ca = ContextualAgent(cb, tau=tau, alpha=alpha)
@@ -205,13 +204,16 @@ def run_grid_search_softmax_exp():
     print('Running a contextual bandit experiment')
     taus = [0.1, 1, 2, 3, 5]
     alphas = [0.01, 0.05, 0.1, 0.2]
-    res = Parallel(n_jobs=1, verbose=10)(delayed(softmax_trial)
+    res = Parallel(n_jobs=-1, verbose=10)(delayed(softmax_trial)
                                          (tau, alpha) for (tau, alpha) in
                                          product(taus, alphas))
     ps = ('tau', 'alpha', 'tot_reward_mean', 'tot_reward_std')
     df = DataFrame(dict([(k, [r[i] for r in res]) for i,k in enumerate(ps)]),
                     columns=ps)
     print(df)
+    print()
+    print('Best:')
+    print(df.loc[df['tot_reward_mean'].idxmax()])
     globals().update(locals())
     
 if __name__ == '__main__':
