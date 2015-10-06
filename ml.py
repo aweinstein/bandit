@@ -6,6 +6,7 @@ See [1] for details.
 Decision making, affect, and learning: Attention and performance XXIII,
 vol. 23, p. 1, 2011.
 """
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -98,7 +99,7 @@ def neg_log_likelihood(alphabeta, data):
     alpha, beta = alphabeta
     actions, rewards = data['action'], data['reward']
     prob_log = 0
-    Q = np.zeros(len(data.keys()) - 2) #np.zeros(2)
+    Q = np.zeros(len(data.keys()) - 2)
     for action, reward in zip(actions, rewards):
         Q[action] += alpha * (reward - Q[action])
         prob_log += np.log(softmax(Q, beta)[action])
@@ -107,6 +108,8 @@ def neg_log_likelihood(alphabeta, data):
 def ml_estimation(log):
     r = minimize(neg_log_likelihood, [0.1,0.1], args=(log,),
                  method='Nelder-Mead')
+    # r = minimize(neg_log_likelihood, [0.1,0.1], args=(log,),
+    #              method='Powell')
     return r
 
 
@@ -116,7 +119,7 @@ def softmax(Qs, beta):
     den = np.exp(Qs * beta).sum()
     return num / den
 
-def plot_ml(log, alpha_hat, beta_hat):
+def plot_ml(log, alpha, beta, alpha_hat, beta_hat):
     from itertools import product
     n = 50
     alphas = np.linspace(0, 1, n)
@@ -126,10 +129,14 @@ def plot_ml(log, alpha_hat, beta_hat):
     for i, (a, b) in enumerate(product(alphas, betas)):
         Z[i] = neg_log_likelihood((a, b), log)
     Z.resize((len(alphas), len(betas)))
+    plt.figure()
     plt.contourf(Alpha, Beta, Z.T, 50)
     plt.plot(alpha_hat, beta_hat, 'r+', ms=10)
     plt.plot(alpha, beta, 'rs', ms=5)
-    
+    plt.xlabel(r'$\alpha$', fontsize=20)
+    plt.ylabel(r'$\beta$', fontsize=20)
+    plt.savefig('nllm.png')
+
 def simple_bandit_experiment():
     b = Bandit()
     alpha = 0.1
@@ -147,25 +154,56 @@ def simple_bandit_experiment():
     alpha_hat, beta_hat = r.x
     print(r)
     
-    plot_ml(agent.log, alpha_hat, beta_hat)
+    plot_ml(agent.log, alpha, beta, alpha_hat, beta_hat)
 
-if __name__ == '__main__':
+def card_bandit_experiment():
     b = BanditCard()
-    alpha = 0.1
-    beta = 0.7
+    alpha = 0.2
+    beta = 0.5
     print('alpha: {:.2f} beta: {:.2f}\n'.format(alpha, beta))
     agent = AgentCard(b, alpha, beta)
-    trials = 1000
+    trials = 120
 
     for _ in range(trials):
         agent.run()
     df = pd.DataFrame(agent.log,
                       columns=('action', 'reward', 
                                'Q(0)', 'Q(1)', 'Q(2)', 'Q(3)'))
+    df.to_csv('data.csv', index_label='trial')
     print('Total reward: {:d}\n'.format(df['reward'].sum()))
     r = ml_estimation(agent.log)
     alpha_hat, beta_hat = r.x
     print(r)
 
-    plot_ml(agent.log, alpha_hat, beta_hat)
+    plot_ml(agent.log, alpha, beta, alpha_hat, beta_hat)
+    globals().update(locals())
 
+def fit_model(pkl):
+    fn = os.path.join('data_behavior', pkl)
+    df = pd.read_pickle(fn)
+    # df.rename(columns={'choices':'action', 'rewards':'reward'},
+    #           inplace=True)
+    cue = 1
+    # This is ugly!!!
+    # Fixit !!!
+    action = df[df['cues']==cue]['choices'].values
+    reward = df[df['cues']==cue]['rewards'].values
+    action = list(map(lambda x: {3:0, 8:1, 14:2, 23:3}[x], action))
+    log = {'action':action, 'reward':reward, 'foo':None, 'bar':None,
+           'foobar':None, 'barfoo':None}
+    r = ml_estimation(log)
+    return r
+
+if __name__ == '__main__':
+    pkls = os.listdir('data_behavior')
+    data = {'alpha':[], 'beta':[], 'subject': [], 'status':[]}
+    for pkl in pkls:
+        r = fit_model(pkl)
+        alpha, beta = r.x
+        data['status'].append(r.message)
+        data['alpha'].append(alpha)
+        data['beta'].append(beta)
+        data['subject'].append(pkl[:2])
+    cols = ('subject', 'alpha', 'beta', 'status')
+    df = pd.DataFrame(data, columns=cols)
+    df.to_csv('fit.csv')

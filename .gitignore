@@ -1,3 +1,7 @@
 *.pdf
 *.csv
 indirectActor
+data
+data_behavior
+*.xls*
+*.png
