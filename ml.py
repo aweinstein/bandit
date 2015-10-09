@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
+Data_Behavior_Dir = 'data_behavior'
+
 class Bandit(object):
     def __init__(self):
         self.n = 2
@@ -105,13 +107,10 @@ def neg_log_likelihood(alphabeta, data):
         prob_log += np.log(softmax(Q, beta)[action])
     return -prob_log
     
-def ml_estimation(log):
+def ml_estimation(log, method_name='Nelder-Mead'):
     r = minimize(neg_log_likelihood, [0.1,0.1], args=(log,),
-                 method='Nelder-Mead')
-    # r = minimize(neg_log_likelihood, [0.1,0.1], args=(log,),
-    #              method='Powell')
+                 method=method_name)
     return r
-
 
 def softmax(Qs, beta):
     """Compute softmax probabilities for all actions."""
@@ -131,8 +130,10 @@ def plot_ml(log, alpha, beta, alpha_hat, beta_hat):
     Z.resize((len(alphas), len(betas)))
     plt.figure()
     plt.contourf(Alpha, Beta, Z.T, 50)
-    plt.plot(alpha_hat, beta_hat, 'r+', ms=10)
-    plt.plot(alpha, beta, 'rs', ms=5)
+    if alpha is not None:
+        plt.plot(alpha, beta, 'rs', ms=5)
+    if alpha_hat is not None:
+        plt.plot(alpha_hat, beta_hat, 'r+', ms=10)
     plt.xlabel(r'$\alpha$', fontsize=20)
     plt.ylabel(r'$\beta$', fontsize=20)
     plt.savefig('nllm.png')
@@ -153,7 +154,6 @@ def simple_bandit_experiment():
     r = ml_estimation(agent.log)
     alpha_hat, beta_hat = r.x
     print(r)
-    
     plot_ml(agent.log, alpha, beta, alpha_hat, beta_hat)
 
 def card_bandit_experiment():
@@ -178,24 +178,31 @@ def card_bandit_experiment():
     plot_ml(agent.log, alpha, beta, alpha_hat, beta_hat)
     globals().update(locals())
 
-def fit_model(pkl):
-    fn = os.path.join('data_behavior', pkl)
+def make_log(pkl):
+    """Make a log dictionary from behavioral data."""
+    fn = os.path.join(Data_Behavior_Dir, pkl)
     df = pd.read_pickle(fn)
-    # df.rename(columns={'choices':'action', 'rewards':'reward'},
-    #           inplace=True)
     cue = 1
-    # This is ugly!!!
-    # Fixit !!!
+    # This is ugly!!! Fixit !!!
     action = df[df['cues']==cue]['choices'].values
     reward = df[df['cues']==cue]['rewards'].values
     action = list(map(lambda x: {3:0, 8:1, 14:2, 23:3}[x], action))
     log = {'action':action, 'reward':reward, 'foo':None, 'bar':None,
            'foobar':None, 'barfoo':None}
+    return log
+    
+def fit_model(pkl):
+    log = make_log(pkl)
     r = ml_estimation(log)
     return r
 
-if __name__ == '__main__':
-    pkls = os.listdir('data_behavior')
+def fit_behavioral_data():
+    """Fit a model for all subjects.
+
+    The data has been previously parsed by pase.py.
+    """
+    pkls = os.listdir(Data_Behavior_Dir)
+    pkls.sort()
     data = {'alpha':[], 'beta':[], 'subject': [], 'status':[]}
     for pkl in pkls:
         r = fit_model(pkl)
@@ -207,3 +214,21 @@ if __name__ == '__main__':
     cols = ('subject', 'alpha', 'beta', 'status')
     df = pd.DataFrame(data, columns=cols)
     df.to_csv('fit.csv')
+
+def fit_single_subject(subject_number):
+    fn = '{:0>2d}.pkl'.format(subject_number)
+    if os.path.isfile(os.path.join(Data_Behavior_Dir, fn)) is False:
+        print('No data for subject', subject_number)
+        return 
+    r = fit_model(fn)
+    print(r)
+    log = make_log(fn)
+    if r.status == 0:
+        alpha, beta = r.x
+        plot_ml(log, alpha, beta, None, None)
+    else:
+        plot_ml(log, None, None, None, None)
+    plt.show()
+
+if __name__ == '__main__':
+    fit_single_subject(17)
