@@ -7,6 +7,7 @@ Decision making, affect, and learning: Attention and performance XXIII,
 vol. 23, p. 1, 2011.
 """
 import os
+import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -118,7 +119,7 @@ def softmax(Qs, beta):
     den = np.exp(Qs * beta).sum()
     return num / den
 
-def plot_ml(log, alpha, beta, alpha_hat, beta_hat):
+def plot_ml(ax, log, alpha, beta, alpha_hat, beta_hat):
     from itertools import product
     n = 50
     alphas = np.linspace(0, 1, n)
@@ -128,15 +129,14 @@ def plot_ml(log, alpha, beta, alpha_hat, beta_hat):
     for i, (a, b) in enumerate(product(alphas, betas)):
         Z[i] = neg_log_likelihood((a, b), log)
     Z.resize((len(alphas), len(betas)))
-    plt.figure()
-    plt.contourf(Alpha, Beta, Z.T, 50)
+    ax.contourf(Alpha, Beta, Z.T, 50)
     if alpha is not None:
-        plt.plot(alpha, beta, 'rs', ms=5)
+        ax.plot(alpha, beta, 'rs', ms=5)
     if alpha_hat is not None:
-        plt.plot(alpha_hat, beta_hat, 'r+', ms=10)
-    plt.xlabel(r'$\alpha$', fontsize=20)
-    plt.ylabel(r'$\beta$', fontsize=20)
-    plt.savefig('nllm.png')
+        ax.plot(alpha_hat, beta_hat, 'r+', ms=10)
+    ax.set_xlabel(r'$\alpha$', fontsize=20)
+    ax.set_ylabel(r'$\beta$', fontsize=20)
+    return 
 
 def simple_bandit_experiment():
     b = Bandit()
@@ -154,7 +154,9 @@ def simple_bandit_experiment():
     r = ml_estimation(agent.log)
     alpha_hat, beta_hat = r.x
     print(r)
-    plot_ml(agent.log, alpha, beta, alpha_hat, beta_hat)
+    fig, ax = plt.subplots(1, 1)
+    plot_ml(ax, agent.log, alpha, beta, alpha_hat, beta_hat)
+    plt.show()
 
 def card_bandit_experiment():
     b = BanditCard()
@@ -175,7 +177,9 @@ def card_bandit_experiment():
     alpha_hat, beta_hat = r.x
     print(r)
 
-    plot_ml(agent.log, alpha, beta, alpha_hat, beta_hat)
+    fig, ax = plt.subplots(1, 1)
+    plot_ml(ax, agent.log, alpha, beta, alpha_hat, beta_hat)
+    plt.show()
     globals().update(locals())
 
 def make_log(pkl):
@@ -223,12 +227,13 @@ def fit_single_subject(subject_number):
     r = fit_model(fn)
     print(r)
     log = make_log(fn)
+    fig, ax = plt.subplots(1, 1)
     if r.status == 0:
         alpha, beta = r.x
-        plot_ml(log, alpha, beta, None, None)
+        plot_ml(ax, log, alpha, beta, None, None)
     else:
-        plot_ml(log, None, None, None, None)
+        plot_ml(ax, log, None, None, None, None)
     plt.show()
 
 if __name__ == '__main__':
-    fit_single_subject(17)
+    fit_single_subject(int(sys.argv[1]))
