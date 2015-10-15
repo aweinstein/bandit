@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
+from utils import save_figs_as_pdf
+
 Data_Behavior_Dir = 'data_behavior'
 
 class Bandit(object):
@@ -109,8 +111,19 @@ def neg_log_likelihood(alphabeta, data):
     return -prob_log
     
 def ml_estimation(log, method_name='Nelder-Mead'):
+    #opt = {'maxfev': 800, 'maxiter':800}
     r = minimize(neg_log_likelihood, [0.1,0.1], args=(log,),
-                 method=method_name)
+                 method=method_name,
+                 #options=opt)
+                 )
+    return r
+
+def fit_model(pkl):
+    log = make_log(pkl)
+    r = ml_estimation(log, 'Nelder-Mead')
+    if r.status != 0:
+        print('trying with Powell')
+        r = ml_estimation(log, 'Powell')
     return r
 
 def softmax(Qs, beta):
@@ -122,8 +135,13 @@ def softmax(Qs, beta):
 def plot_ml(ax, log, alpha, beta, alpha_hat, beta_hat):
     from itertools import product
     n = 50
-    alphas = np.linspace(0, 1, n)
-    betas = np.linspace(0, 2, n)
+    alpha_max = 0.2
+    beta_max = 1.3
+    if alpha is not None:
+        alpha_max = alpha_max if alpha < alpha_max else 1.1 * alpha
+        beta_max = beta_max if beta < beta_max else 1.1 * beta
+    alphas = np.linspace(0, alpha_max, n)
+    betas = np.linspace(0, beta_max, n)
     Alpha, Beta = np.meshgrid(alphas, betas)
     Z = np.zeros(len(Alpha) * len(Beta))
     for i, (a, b) in enumerate(product(alphas, betas)):
@@ -148,9 +166,9 @@ def simple_bandit_experiment():
 
     for _ in range(trials):
         agent.run()
-    df = pd.DataFrame(agent.log,
-                      columns=('action', 'reward', 
-                               'Q(0)', 'Q(1)'))
+    # df = pd.DataFrame(agent.log,
+    #                   columns=('action', 'reward', 
+    #                            'Q(0)', 'Q(1)'))
     r = ml_estimation(agent.log)
     alpha_hat, beta_hat = r.x
     print(r)
@@ -194,11 +212,17 @@ def make_log(pkl):
     log = {'action':action, 'reward':reward, 'foo':None, 'bar':None,
            'foobar':None, 'barfoo':None}
     return log
-    
-def fit_model(pkl):
-    log = make_log(pkl)
-    r = ml_estimation(log)
-    return r
+
+def plot_single_subject(fn, ax, r):
+    log = make_log(fn)
+    if r.status == 0:
+        alpha, beta = r.x
+        plot_ml(ax, log, alpha, beta, None, None)
+        title = 'Subject {:s}'.format(fn[:2])
+    else:
+        plot_ml(ax, log, None, None, None, None)
+        title = 'Subject {:s}, not converged'.format(fn[:2])
+    ax.set_title(title)
 
 def fit_behavioral_data():
     """Fit a model for all subjects.
@@ -208,16 +232,24 @@ def fit_behavioral_data():
     pkls = os.listdir(Data_Behavior_Dir)
     pkls.sort()
     data = {'alpha':[], 'beta':[], 'subject': [], 'status':[]}
+    figs = []
     for pkl in pkls:
+        print(pkl)
         r = fit_model(pkl)
         alpha, beta = r.x
         data['status'].append(r.message)
         data['alpha'].append(alpha)
         data['beta'].append(beta)
         data['subject'].append(pkl[:2])
+        fig, ax = plt.subplots(1, 1)
+        plot_single_subject(pkl, ax, r)
+        figs.append(fig)
+        plt.close()
     cols = ('subject', 'alpha', 'beta', 'status')
     df = pd.DataFrame(data, columns=cols)
     df.to_csv('fit.csv')
+    save_figs_as_pdf(figs, 'nllf.pdf')
+    
 
 def fit_single_subject(subject_number):
     fn = '{:0>2d}.pkl'.format(subject_number)
@@ -226,13 +258,9 @@ def fit_single_subject(subject_number):
         return 
     r = fit_model(fn)
     print(r)
-    log = make_log(fn)
+    plt.close('all')
     fig, ax = plt.subplots(1, 1)
-    if r.status == 0:
-        alpha, beta = r.x
-        plot_ml(ax, log, alpha, beta, None, None)
-    else:
-        plot_ml(ax, log, None, None, None, None)
+    plot_single_subject(fn, ax, r)
     plt.show()
 
 if __name__ == '__main__':
