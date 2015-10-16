@@ -6,3 +6,4 @@ data_behavior
 *.xls*
 *.png
 __pycache__
+*.pkl
