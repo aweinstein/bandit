@@ -22,7 +22,7 @@ def matlab_to_dataframe():
             for column in columns:
                 data[column] = data[column].flatten()
             df = pd.DataFrame(data, columns=columns)
-            df.index.name = 'trial'
+            df.index.name = 'trial' 
             df_file = os.path.join(DF_Dir, s + '.pkl')
             print('DataFrame saved in', df_file)
             df.to_pickle(df_file)
@@ -36,3 +36,9 @@ def concat_all_dataframes():
     df_all.index.set_names('subject', 0, inplace=True)
     df_all.to_pickle('all_data.pkl')
 
+def get_hipomania_scores():
+    fn = 'HypomaniaData.xlsx'
+    df = pd.read_excel(fn)
+    hps_df = df[['PN', 'HPS']]
+    hps_df.rename(columns={'PN':'subject'}, inplace=True)
+    hps_df.to_pickle('hps_df.pkl')
