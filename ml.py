@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+from collections import defaultdict
 
 from utils import save_figs_as_pdf
 
@@ -304,15 +305,23 @@ def make_learner_df():
 
     subjects = df.index.get_level_values('subject').unique()
     learners = {}
+    n_optimum = defaultdict(list)
 
     for subject in subjects:
         actions = df[df['cues'] == cue].ix[subject]['choices']
-        learner , _ = get_learner_class(actions, opt_choice)
+        learner , n_per_block = get_learner_class(actions, opt_choice)
         learners[subject] = learner
+        for i, n in enumerate(n_per_block):
+            n_optimum['subject'].append(subject)
+            n_optimum['block'].append(i)
+            n_optimum['n_optimum'].append(n)
+            n_optimum['learner'].append(learner)
     
     df_learners = pd.DataFrame(pd.Series(learners), columns=['learner'])
     df_learners.index.set_names('subject', inplace=True)
-    return df_learners
+    cols = ['subject', 'block', 'n_optimum', 'learner']
+    df_n_optimum = pd.DataFrame(n_optimum, columns=cols)
+    return df_learners, df_n_optimum
 
 if __name__ == '__main__x':
     fit_single_subject(int(sys.argv[1]))
