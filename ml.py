@@ -249,7 +249,6 @@ def fit_behavioral_data():
     df = pd.DataFrame(data, columns=cols)
     df.to_csv('fit.csv')
     save_figs_as_pdf(figs, 'nllf.pdf')
-    
 
 def fit_single_subject(subject_number):
     fn = '{:0>2d}.pkl'.format(subject_number)
@@ -263,5 +262,57 @@ def fit_single_subject(subject_number):
     plot_single_subject(fn, ax, r)
     plt.show()
 
-if __name__ == '__main__':
+def get_learner_class(actions, opt_action):
+    """Determine if the actions correspond to a learner behavior.
+
+    Parameters
+    ----------
+    actions: ndArray or Series
+        List of actions selected by the subject
+    opt_action: int
+        Optimal action
+
+    Returns
+    -------
+    learner: bool
+        True if the subject is a learner
+    n_optimals: list
+        List with the number of optimal actions in each segment of 20 trials
+
+    Notes
+    -----
+    See the following for details
+
+    T. Schonberg, N. D. Daw, D. Joel, and J. P. O'Doherty, "Reinforcement
+    Learning Signals in the Human Striatum Distinguish Learners from
+    Nonlearners during Reward-Based Decision Making," J. Neurosci., vol. 27,
+    no. 47, pp. 12860–12867, Nov. 2007.
+    """
+    block_size = 20
+    n_blocks = int(len(actions) / block_size)
+    blocks = np.array_split(actions, n_blocks)
+    n_optimals = [(block==opt_action).sum() for block in blocks]
+    last_n_size = 40
+    threshold = 25
+    learner = (actions[-last_n_size:]==opt_action).sum() > threshold
+    return learner, n_optimals
+
+def make_learner_df():
+    df = pd.read_pickle('all_data.pkl')
+    cue = 1
+    opt_choice = 23
+
+    subjects = df.index.get_level_values('subject').unique()
+    learners = {}
+
+    for subject in subjects:
+        actions = df[df['cues'] == cue].ix[subject]['choices']
+        learner , _ = get_learner_class(actions, opt_choice)
+        learners[subject] = learner
+    
+    df_learners = pd.DataFrame(pd.Series(learners), columns=['learner'])
+    df_learners.index.set_names('subject', inplace=True)
+    return df_learners
+
+if __name__ == '__main__x':
     fit_single_subject(int(sys.argv[1]))
