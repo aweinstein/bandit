@@ -323,14 +323,5 @@ def make_learner_df():
     df_n_optimum = pd.DataFrame(n_optimum, columns=cols)
     return df_learners, df_n_optimum
     
-def plot_optimum():
-    # Move to vis.py later
-    import seaborn as sns
-    df = pd.read_pickle('df_n_optimum.pkl')
-    plt.close('all')
-    sns.factorplot(data=df, x='block', y='n_optimum', hue='learner', aspect=1.5)
-    plt.savefig('n_optimum.pdf')
-    plt.show()
-
 if __name__ == '__main__x':
     fit_single_subject(int(sys.argv[1]))

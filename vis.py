@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
-
 def plot_actions(cue=1):
     d_map = {3:1, 8:2, 14:3, 23:4}
     df = pd.read_pickle('all_data.pkl')
@@ -35,3 +34,9 @@ def plot_actions(cue=1):
     plt.savefig(fn)
     plt.show()
 
+def plot_optimum():
+    df = pd.read_pickle('df_n_optimum.pkl')
+    plt.close('all')
+    sns.factorplot(data=df, x='block', y='n_optimum', hue='learner', aspect=1.5)
+    plt.savefig('n_optimum.pdf')
+    plt.show()
