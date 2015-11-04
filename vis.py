@@ -3,11 +3,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
-fig_dir = 'figs'
+Fig_Dir = 'figs'
+DF_Dir = 'df'
 
 def plot_actions(cue=1):
     d_map = {3:1, 8:2, 14:3, 23:4}
-    df = pd.read_pickle('all_data.pkl')
+    df = pd.read_pickle(os.path.join(DF_Dir, 'all_data.pkl'))
     df['choices'] = df['choices'].apply(lambda x: d_map[x])
     if cue in [1, 2, 3]:
         df = df.loc[df['cues'] == cue]
@@ -49,15 +50,15 @@ def plot_actions(cue=1):
         fn = 'actions_{:d}.pdf'.format(cue)
     else:
         fn = 'actions_all.pdf'
-    plt.savefig(os.path.join(fig_dir, fn))
+    plt.savefig(os.path.join(Fig_Dir, fn))
     plt.show()
     globals().update(locals())
 
 def plot_optimum():
-    df = pd.read_pickle('df_n_optimum.pkl')
+    df = pd.read_pickle(os.path.join(DF_Dir, 'df_n_optimum.pkl'))
     plt.close('all')
     sns.factorplot(data=df, x='block', y='n_optimum', hue='learner', aspect=1.5)
-    plt.savefig(os.path.join(fig_dir, 'n_optimum.pdf'))
+    plt.savefig(os.path.join(Fig_Dir, 'n_optimum.pdf'))
     plt.show()
 
 if __name__ == '__main__':

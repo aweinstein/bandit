@@ -19,7 +19,8 @@ from utils import save_figs_as_pdf
 
 
 Data_Behavior_Dir = 'data_behavior'
-fig_dir = 'figs'
+Fig_Dir = 'figs'
+DF_Dir = 'df'
 
 class Bandit(object):
     def __init__(self):
@@ -252,7 +253,7 @@ def fit_behavioral_data():
     cols = ('subject', 'alpha', 'beta', 'status')
     df = pd.DataFrame(data, columns=cols)
     df.to_csv('fit.csv')
-    save_figs_as_pdf(figs, os.path.join(fig_dir, 'nllf.pdf'))
+    save_figs_as_pdf(figs, os.path.join(Fig_Dir, 'nllf.pdf'))
 
 def fit_single_subject(subject_number):
     fn = '{:0>2d}.pkl'.format(subject_number)
@@ -302,7 +303,7 @@ def get_learner_class(actions, opt_action):
     return learner, n_optimals
 
 def make_learner_df():
-    df = pd.read_pickle('all_data.pkl')
+    df = pd.read_pickle(os.path.join(DF_Dir, 'all_data.pkl'))
     cue = 1
     opt_choice = 23
 
