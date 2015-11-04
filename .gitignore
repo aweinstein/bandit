@@ -7,3 +7,4 @@ data_behavior
 *.png
 __pycache__
 *.pkl
+figs

@@ -1,6 +1,9 @@
+import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+
+fig_dir = 'figs'
 
 def plot_actions(cue=1):
     d_map = {3:1, 8:2, 14:3, 23:4}
@@ -46,7 +49,7 @@ def plot_actions(cue=1):
         fn = 'actions_{:d}.pdf'.format(cue)
     else:
         fn = 'actions_all.pdf'
-    plt.savefig(fn)
+    plt.savefig(os.path.join(fig_dir, fn))
     plt.show()
     globals().update(locals())
 
@@ -54,7 +57,7 @@ def plot_optimum():
     df = pd.read_pickle('df_n_optimum.pkl')
     plt.close('all')
     sns.factorplot(data=df, x='block', y='n_optimum', hue='learner', aspect=1.5)
-    plt.savefig('n_optimum.pdf')
+    plt.savefig(os.path.join(fig_dir, 'n_optimum.pdf'))
     plt.show()
 
 if __name__ == '__main__':

@@ -13,10 +13,13 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from collections import defaultdict
+from matplotlib import cm
 
 from utils import save_figs_as_pdf
 
+
 Data_Behavior_Dir = 'data_behavior'
+fig_dir = 'figs'
 
 class Bandit(object):
     def __init__(self):
@@ -148,7 +151,7 @@ def plot_ml(ax, log, alpha, beta, alpha_hat, beta_hat):
     for i, (a, b) in enumerate(product(alphas, betas)):
         Z[i] = neg_log_likelihood((a, b), log)
     Z.resize((len(alphas), len(betas)))
-    ax.contourf(Alpha, Beta, Z.T, 50)
+    ax.contourf(Alpha, Beta, Z.T, 50, cmap=cm.jet)
     if alpha is not None:
         ax.plot(alpha, beta, 'rs', ms=5)
     if alpha_hat is not None:
@@ -249,7 +252,7 @@ def fit_behavioral_data():
     cols = ('subject', 'alpha', 'beta', 'status')
     df = pd.DataFrame(data, columns=cols)
     df.to_csv('fit.csv')
-    save_figs_as_pdf(figs, 'nllf.pdf')
+    save_figs_as_pdf(figs, os.path.join(fig_dir, 'nllf.pdf'))
 
 def fit_single_subject(subject_number):
     fn = '{:0>2d}.pkl'.format(subject_number)
@@ -323,5 +326,5 @@ def make_learner_df():
     df_n_optimum = pd.DataFrame(n_optimum, columns=cols)
     return df_learners, df_n_optimum
     
-if __name__ == '__main__x':
+if __name__ == '__main__':
     fit_single_subject(int(sys.argv[1]))

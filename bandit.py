@@ -1,9 +1,12 @@
+import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 plt.style.use('ggplot')
 mpl.rcParams['lines.linewidth'] = 2
+
+fig_dir = 'figs'
 
 class Bandit(object):
     def __init__(self, n=10):
@@ -162,7 +165,7 @@ def figure_2_1():
     ax2.set_xlabel('Plays')
     ax2.set_ylabel('% Optimal action')
     ax2.set_xlim(xmin=-20)
-    plt.savefig('fig_2_1.pdf')
+    plt.savefig(os.path.join(fig_dir, 'fig_2_1.pdf'))
     plt.show()
 
 def figure_2_4():
@@ -192,7 +195,7 @@ def figure_2_4():
     ax2.set_xlabel('Plays')
     ax2.set_ylabel('% Optimal action')
     ax2.set_xlim(xmin=-20)
-    plt.savefig('fig_2_4.pdf')
+    plt.savefig(os.path.join(fig_dir, 'fig_2_4.pdf'))
     plt.show()
 
 def softmax_experiment():
@@ -219,7 +222,7 @@ def softmax_experiment():
     ax2.set_xlabel('Plays')
     ax2.set_ylabel('% Optimal action')
     ax2.set_xlim(xmin=-20)
-    plt.savefig('softmax_experiment.pdf')
+    plt.savefig(os.path.join(fig_dir, 'softmax_experiment.pdf'))
     plt.show()
 
 if __name__ == '__main__':
