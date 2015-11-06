@@ -17,7 +17,6 @@ from matplotlib import cm
 
 from utils import save_figs_as_pdf
 
-
 Data_Behavior_Dir = 'data_behavior'
 Fig_Dir = 'figs'
 DF_Dir = 'df'
@@ -115,20 +114,22 @@ def neg_log_likelihood(alphabeta, data):
         prob_log += np.log(softmax(Q, beta)[action])
     return -prob_log
     
-def ml_estimation(log, method_name='Nelder-Mead'):
-    #opt = {'maxfev': 800, 'maxiter':800}
-    r = minimize(neg_log_likelihood, [0.1,0.1], args=(log,),
-                 method=method_name,
-                 #options=opt)
-                 )
+def ml_estimation(log, method_name='Nelder-Mead', bounds=None):
+    if bounds is None:
+        r = minimize(neg_log_likelihood, [0.1,0.1], args=(log,),
+                     method=method_name)
+    else:
+        r = minimize(neg_log_likelihood, [0.1,0.1], args=(log,),
+                     method='L-BFGS-B',
+                     bounds=bounds)
     return r
 
-def fit_model(pkl):
+def fit_model(pkl, bounds=None):
     log = make_log(pkl)
-    r = ml_estimation(log, 'Nelder-Mead')
+    r = ml_estimation(log, 'Nelder-Mead', bounds)
     if r.status != 0:
         print('trying with Powell')
-        r = ml_estimation(log, 'Powell')
+        r = ml_estimation(log, 'Powell', bounds)
     return r
 
 def softmax(Qs, beta):
@@ -229,10 +230,10 @@ def plot_single_subject(fn, ax, r):
         title = 'Subject {:s}, not converged'.format(fn[:2])
     ax.set_title(title)
 
-def fit_behavioral_data():
+def fit_behavioral_data(bounds=None):
     """Fit a model for all subjects.
 
-    The data has been previously parsed by pase.py.
+    The data has been previously parsed by parse.py.
     """
     pkls = os.listdir(Data_Behavior_Dir)
     pkls.sort()
@@ -240,7 +241,7 @@ def fit_behavioral_data():
     figs = []
     for pkl in pkls:
         print(pkl)
-        r = fit_model(pkl)
+        r = fit_model(pkl, bounds)
         alpha, beta = r.x
         data['status'].append(r.message)
         data['alpha'].append(alpha)
@@ -253,14 +254,18 @@ def fit_behavioral_data():
     cols = ('subject', 'alpha', 'beta', 'status')
     df = pd.DataFrame(data, columns=cols)
     df.to_csv('fit.csv')
-    save_figs_as_pdf(figs, os.path.join(Fig_Dir, 'nllf.pdf'))
+    if bounds is None:
+        fn = os.path.join(Fig_Dir, 'nllf_unbounded.pdf')
+    else:
+        fn = os.path.join(Fig_Dir, 'nllf_bounded.pdf')
+    save_figs_as_pdf(figs, fn)
 
-def fit_single_subject(subject_number):
+def fit_single_subject(subject_number, bounds=None):
     fn = '{:0>2d}.pkl'.format(subject_number)
     if os.path.isfile(os.path.join(Data_Behavior_Dir, fn)) is False:
         print('No data for subject', subject_number)
         return 
-    r = fit_model(fn)
+    r = fit_model(fn, bounds)
     print(r)
     plt.close('all')
     fig, ax = plt.subplots(1, 1)
@@ -328,4 +333,5 @@ def make_learner_df():
     return df_learners, df_n_optimum
     
 if __name__ == '__main__':
-    fit_single_subject(int(sys.argv[1]))
+    bounds = ((0,1), (0,2))
+    fit_single_subject(int(sys.argv[1]), bounds)
