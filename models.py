@@ -106,11 +106,16 @@ class AgentCard(object):
         self.log['Q(3)'].append(self.Q[3])
 
 class BanditCardCues(object):
-    def __init__(self):
-        self.n = 4
+    def __init__(self, n_cues=2, probs=(0.8, 0.2)):
+        self.actions_bet = (3, 8, 14, 23)
+        self.actions = range(len(self.actions_bet))
+        self.n_actions = len(self.actions_bet)
+        self.n_cues = n_cues
+        self.cues = range(n_cues)
+        self.probs = probs
 
     def get_cue(self):
-        self.cue = np.random.choice((0, 1, 2))
+        self.cue = np.random.choice(self.cues)
         return self.cue
         
     def reward(self, action):
@@ -118,13 +123,12 @@ class BanditCardCues(object):
 
         The bandit has no cues.
         """
-        actions_bet = (3, 8, 14, 23)
-        p_win = [0.8, 0.5, 0.2][self.cue]
-        if action >=0 and action < self.n:
+        p_win = self.probs[self.cue]
+        if action in self.actions:
             if np.random.rand() < p_win:
-                r = actions_bet[action]
+                r = self.actions_bet[action]
             else:
-                r = -actions_bet[action]
+                r = -self.actions_bet[action]
         else:
             print('Error: action out of range')
             r = None
@@ -134,14 +138,14 @@ class AgentCardCues(object):
     def __init__(self, bandit, alpha=0.05, beta=1):
         self.bandit = bandit
         # Q-values are stored as Q[cue, action]
-        self.Q = np.zeros((3,4))
+        self.Q = np.zeros((bandit.n_cues, bandit.n_actions))
         self.alpha = alpha
         self.beta = beta
         self.log = defaultdict(list)
 
     def run(self):
-        actions = (0, 1, 2, 3)
-        cues = (0, 1, 2)
+        actions = self.bandit.actions
+        cues = self.bandit.cues
         cue = self.bandit.get_cue()
         p = softmax(self.Q[cue,:], self.beta)
         action = np.random.choice(actions, p=p)
@@ -164,9 +168,8 @@ if __name__ == '__main__':
         agent.run()
 
     columns = ['cue', 'action', 'reward']
-    actions = (0, 1, 2, 3)
-    cues = (0, 1, 2)
-    for cue, action in product(cues, actions):
+    for cue, action in product(bandit.cues, bandit.actions):
         columns.append('Q({:d},{:d})'.format(cue, action))
     
     df = pd.DataFrame(agent.log, columns=columns)
+    df.to_pickle('df/agent_cues.pkl')
