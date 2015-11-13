@@ -22,35 +22,39 @@ Data_Behavior_Dir = 'data_behavior'
 Fig_Dir = 'figs'
 DF_Dir = 'df'
 
-def neg_log_likelihood(alphabeta, data):
+def neg_log_likelihood(alphabeta, df):
     alpha, beta = alphabeta
-    actions, rewards = data['action'], data['reward']
+    actions, rewards = df['action'].values, df['reward'].values
     prob_log = 0
-    Q = np.zeros(len(data.keys()) - 2)
+    # Get from class property when refactor as a class
+    n_actions = sum([s.startswith('Q') for s in df.columns.tolist()])
+    if n_actions > 0:
+        Q = np.zeros(n_actions)
+    else:
+        Q = np.zeros(4)
     for action, reward in zip(actions, rewards):
         Q[action] += alpha * (reward - Q[action])
         prob_log += np.log(softmax(Q, beta)[action])
     return -prob_log
     
-def ml_estimation(log, method_name='Nelder-Mead', bounds=None):
+def ml_estimation(df, method_name='Nelder-Mead', bounds=None):
     if bounds is None:
-        r = minimize(neg_log_likelihood, [0.1,0.1], args=(log,),
+        r = minimize(neg_log_likelihood, [0.1,0.1], args=(df,),
                      method=method_name)
     else:
-        r = minimize(neg_log_likelihood, [0.1,0.1], args=(log,),
+        r = minimize(neg_log_likelihood, [0.1,0.1], args=(df,),
                      method='L-BFGS-B',
                      bounds=bounds)
     return r
 
-def fit_model(pkl, bounds=None):
-    log = make_log(pkl)
-    r = ml_estimation(log, 'Nelder-Mead', bounds)
+def fit_model(df, bounds=None):
+    r = ml_estimation(df, 'Nelder-Mead', bounds)
     if r.status != 0:
         print('trying with Powell')
-        r = ml_estimation(log, 'Powell', bounds)
+        r = ml_estimation(df, 'Powell', bounds)
     return r
 
-def plot_ml(ax, log, alpha, beta, alpha_hat, beta_hat):
+def plot_ml(ax, df, alpha, beta, alpha_hat, beta_hat):
     from itertools import product
     n = 50
     alpha_max = 0.2
@@ -58,12 +62,15 @@ def plot_ml(ax, log, alpha, beta, alpha_hat, beta_hat):
     if alpha is not None:
         alpha_max = alpha_max if alpha < alpha_max else 1.1 * alpha
         beta_max = beta_max if beta < beta_max else 1.1 * beta
+    if alpha_hat is not None:
+        alpha_max = alpha_max if alpha_hat < alpha_max else 1.1 * alpha_hat
+        beta_max = beta_max if beta_hat < beta_max else 1.1 * beta_hat
     alphas = np.linspace(0, alpha_max, n)
     betas = np.linspace(0, beta_max, n)
     Alpha, Beta = np.meshgrid(alphas, betas)
     Z = np.zeros(len(Alpha) * len(Beta))
     for i, (a, b) in enumerate(product(alphas, betas)):
-        Z[i] = neg_log_likelihood((a, b), log)
+        Z[i] = neg_log_likelihood((a, b), df)
     Z.resize((len(alphas), len(betas)))
     ax.contourf(Alpha, Beta, Z.T, 50, cmap=cm.jet)
     if alpha is not None:
@@ -84,14 +91,12 @@ def simple_bandit_experiment():
 
     for _ in range(trials):
         agent.run()
-    # df = pd.DataFrame(agent.log,
-    #                   columns=('action', 'reward', 
-    #                            'Q(0)', 'Q(1)'))
-    r = ml_estimation(agent.log)
+    df = agent.get_df()
+    r = ml_estimation(df)
     alpha_hat, beta_hat = r.x
     print(r)
     fig, ax = plt.subplots(1, 1)
-    plot_ml(ax, agent.log, alpha, beta, alpha_hat, beta_hat)
+    plot_ml(ax, df, alpha, beta, alpha_hat, beta_hat)
     plt.show()
 
 def card_bandit_experiment():
@@ -100,49 +105,33 @@ def card_bandit_experiment():
     beta = 0.5
     print('alpha: {:.2f} beta: {:.2f}\n'.format(alpha, beta))
     agent = AgentCard(b, alpha, beta)
-    trials = 120
+    trials = 360
 
     for _ in range(trials):
         agent.run()
-    df = pd.DataFrame(agent.log,
-                      columns=('action', 'reward', 
-                               'Q(0)', 'Q(1)', 'Q(2)', 'Q(3)'))
+    df = agent.get_df()
     df.to_csv('data.csv', index_label='trial')
     print('Total reward: {:d}\n'.format(df['reward'].sum()))
-    r = ml_estimation(agent.log)
+    r = ml_estimation(df)
     alpha_hat, beta_hat = r.x
     print(r)
 
     fig, ax = plt.subplots(1, 1)
-    plot_ml(ax, agent.log, alpha, beta, alpha_hat, beta_hat)
+    plot_ml(ax, df, alpha, beta, alpha_hat, beta_hat)
     plt.show()
     globals().update(locals())
 
-def make_log(pkl):
-    """Make a log dictionary from behavioral data."""
-    fn = os.path.join(Data_Behavior_Dir, pkl)
-    df = pd.read_pickle(fn)
-    cue = 1
-    # This is ugly!!! Fixit !!!
-    action = df[df['cues']==cue]['choices'].values
-    reward = df[df['cues']==cue]['rewards'].values
-    action = list(map(lambda x: {3:0, 8:1, 14:2, 23:3}[x], action))
-    log = {'action':action, 'reward':reward, 'foo':None, 'bar':None,
-           'foobar':None, 'barfoo':None}
-    return log
-
-def plot_single_subject(fn, ax, r):
-    log = make_log(fn)
+def plot_single_subject(df, subject, ax, r):
     if r.status == 0:
         alpha, beta = r.x
-        plot_ml(ax, log, alpha, beta, None, None)
-        title = 'Subject {:s}'.format(fn[:2])
+        plot_ml(ax, df, alpha, beta, None, None)
+        title = 'Subject {:d}'.format(subject)
     else:
-        plot_ml(ax, log, None, None, None, None)
-        title = 'Subject {:s}, not converged'.format(fn[:2])
+        plot_ml(ax, df, None, None, None, None)
+        title = 'Subject {:d}, not converged'.format(subject)
     ax.set_title(title)
 
-def fit_behavioral_data(bounds=None):
+def fit_behavioral_data(bounds=None, cue=0):
     """Fit a model for all subjects.
 
     The data has been previously parsed by parse.py.
@@ -153,14 +142,16 @@ def fit_behavioral_data(bounds=None):
     figs = []
     for pkl in pkls:
         print(pkl)
-        r = fit_model(pkl, bounds)
+        df = pd.read_pickle(os.path.join(Data_Behavior_Dir, pkl))
+        df = df[df['cue']==cue]
+        r = fit_model(df, bounds)
         alpha, beta = r.x
         data['status'].append(r.message)
         data['alpha'].append(alpha)
         data['beta'].append(beta)
         data['subject'].append(pkl[:2])
         fig, ax = plt.subplots(1, 1)
-        plot_single_subject(pkl, ax, r)
+        plot_single_subject(df, int(pkl[:2]), ax, r)
         figs.append(fig)
         plt.close()
     cols = ('subject', 'alpha', 'beta', 'status')
@@ -172,16 +163,17 @@ def fit_behavioral_data(bounds=None):
         fn = os.path.join(Fig_Dir, 'nllf_bounded.pdf')
     save_figs_as_pdf(figs, fn)
 
-def fit_single_subject(subject_number, bounds=None):
-    fn = '{:0>2d}.pkl'.format(subject_number)
-    if os.path.isfile(os.path.join(Data_Behavior_Dir, fn)) is False:
+def fit_single_subject(subject_number, bounds=None, cue=0):
+    fn = os.path.join(Data_Behavior_Dir, '{:0>2d}.pkl'.format(subject_number))
+    if os.path.isfile(fn) is False:
         print('No data for subject', subject_number)
-        return 
-    r = fit_model(fn, bounds)
-    print(r)
+        return
+    df = pd.read_pickle(fn)
+    df = df[df['cue']==cue]
+    r = fit_model(df, bounds)
     plt.close('all')
     fig, ax = plt.subplots(1, 1)
-    plot_single_subject(fn, ax, r)
+    plot_single_subject(df, subject_number, ax, r)
     plt.show()
     return r
 
@@ -230,7 +222,7 @@ def make_learner_df():
     n_optimum = defaultdict(list)
 
     for subject in subjects:
-        actions = df[df['cues'] == cue].ix[subject]['choices']
+        actions = df[df['cue'] == cue].ix[subject]['action']
         learner , n_per_block = get_learner_class(actions, opt_choice)
         learners[subject] = learner
         for i, n in enumerate(n_per_block):

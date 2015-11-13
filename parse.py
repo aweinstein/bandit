@@ -18,24 +18,33 @@ def matlab_to_dataframe():
         if fname.endswith('.mat'):
             s = fname[1:3]
             print('Reading', fname, '...')
-            data = loadmat(os.path.join(dir_name, fname))
+            data_ml = loadmat(os.path.join(dir_name, fname))
+            data_df = {}
             columns = ('cues', 'choices', 'rewards', 'accepts')
             for column in columns:
-                data[column] = data[column].flatten()
-            df = pd.DataFrame(data, columns=columns)
-            df.index.name = 'trial' 
+                data_df[column] = data_ml[column].flatten()
+            df = pd.DataFrame(data_df, columns=columns)
+            new_names = {'cues':'cue', 'choices':'action', 'rewards':'reward'}
+            df.rename(columns=new_names, inplace=True)
+            df.index.name = 'trial'
+            d_map = {3:0, 8:1, 14:2, 23:3}
+            df['action'] = df['action'].apply(lambda x: d_map[x])
+            df['cue'] = df['cue'].apply(lambda x: x - 1)
             df_file = os.path.join(Data_Dir, s + '.pkl')
             print('DataFrame saved in', df_file)
             df.to_pickle(df_file)
 
 def concat_all_dataframes():
+    print('Concatenating the subject DFs')
     pkls = os.listdir(Data_Dir)
     pkls.sort()
     subjects = [int(s[:2]) for s in pkls]
     dfs = (pd.read_pickle(os.path.join(Data_Dir,fn)) for fn in pkls)
     df_all = pd.concat(dfs, keys=subjects)
     df_all.index.set_names('subject', 0, inplace=True)
-    df_all.to_pickle(os.path.join(DF_Dir,'all_data.pkl'))
+    fn = os.path.join(DF_Dir,'all_data.pkl')
+    df_all.to_pickle(fn)
+    print('DF save as', fn)
 
 def get_hipomania_scores():
     fn = os.path.join(DF_Dir, 'HypomaniaData.xlsx')
@@ -43,3 +52,6 @@ def get_hipomania_scores():
     hps_df = df[['PN', 'HPS']]
     hps_df.rename(columns={'PN':'subject'}, inplace=True)
     hps_df.to_pickle(os.path.join(DF_Dir, 'hps_df.pkl'))
+
+
+
