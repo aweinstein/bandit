@@ -2,6 +2,7 @@ from collections import defaultdict
 from itertools import product
 
 import numpy as np
+import pandas as pd
 
 from utils import softmax
 
@@ -60,6 +61,10 @@ class Agent(object):
         self.log['Q(0)'].append(self.Q[0])
         self.log['Q(1)'].append(self.Q[1])
 
+    def get_df(self):
+        columns = ['action', 'reward', 'Q(0)', 'Q(1)']
+        df = pd.DataFrame(self.log, columns=columns)
+        return df
 
 class BanditCard(object):
     def __init__(self):
@@ -104,6 +109,12 @@ class AgentCard(object):
         self.log['Q(1)'].append(self.Q[1])
         self.log['Q(2)'].append(self.Q[2])
         self.log['Q(3)'].append(self.Q[3])
+
+    def get_df(self):
+        columns = ['action', 'reward', 'Q(0)', 'Q(1)', 'Q(2)', 'Q(3)']
+        df = pd.DataFrame(self.log, columns=columns)
+        return df
+
 
 class BanditCardCues(object):
     def __init__(self, n_cues=2, probs=(0.8, 0.2)):
@@ -159,17 +170,20 @@ class AgentCardCues(object):
             key = 'Q({:d},{:d})'.format(cue, action)
             self.log[key].append(self.Q[cue, action])
 
+    def get_df(self):
+        columns = ['cue', 'action', 'reward']
+        for cue, action in product(self.bandit.cues, self.bandit.actions):
+            columns.append('Q({:d},{:d})'.format(cue, action))
+        df = pd.DataFrame(self.log, columns=columns)
+        return df
+        
+
 if __name__ == '__main__':
-    import pandas as pd
     bandit = BanditCardCues()
     agent = AgentCardCues(bandit, alpha=0.05)
     trials = 300
     for _ in range(trials):
         agent.run()
 
-    columns = ['cue', 'action', 'reward']
-    for cue, action in product(bandit.cues, bandit.actions):
-        columns.append('Q({:d},{:d})'.format(cue, action))
-    
-    df = pd.DataFrame(agent.log, columns=columns)
+    df = agent.get_df()
     df.to_pickle('df/agent_cues.pkl')
