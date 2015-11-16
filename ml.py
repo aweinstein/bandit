@@ -140,7 +140,7 @@ def card_bandit_experiment():
     for _ in range(trials):
         agent.run()
     df = agent.get_df()
-    df.to_csv('data.csv', index_label='trial')
+    df.to_csv(os.path.join(DF_Dir, 'data.csv'), index_label='trial')
     print('Total reward: {:d}\n'.format(df['reward'].sum()))
     ml = ML(df, 4)
     r = ml.ml_estimation()
@@ -176,7 +176,7 @@ def card_cue_bandit_experiment():
     globals().update(locals())
 
 
-def fit_behavioral_data(bounds=None, cue=0):
+def fit_behavioral_data(bounds=None, cues=(0,)):
     """Fit a model for all subjects.
 
     The data has been previously parsed by parse.py.
@@ -188,8 +188,8 @@ def fit_behavioral_data(bounds=None, cue=0):
     for pkl in pkls:
         print(pkl)
         df = pd.read_pickle(os.path.join(Data_Behavior_Dir, pkl))
-        df = df[df['cue']==cue]
-        ml = ML(df, 4)
+        cues = (0,1)
+        ml = ML(df, 4, cues)
         r = ml.fit_model(bounds)
         alpha, beta = r.x
         data['status'].append(r.message)
@@ -202,21 +202,21 @@ def fit_behavioral_data(bounds=None, cue=0):
         plt.close()
     cols = ('subject', 'alpha', 'beta', 'status')
     df = pd.DataFrame(data, columns=cols)
-    df.to_csv('fit.csv')
+    df.to_csv(os.path.join(DF_Dir, 'fit.csv'))
+    cues_str = ''.join(str(a) for a in cues)
     if bounds is None:
-        fn = os.path.join(Fig_Dir, 'nllf_unbounded.pdf')
+        fn = 'nllf_unbounded_{:s}.pdf'.format(cues_str)
     else:
-        fn = os.path.join(Fig_Dir, 'nllf_bounded.pdf')
-    save_figs_as_pdf(figs, fn)
+        fn = 'nllf_bounded_{:s}.pdf'.format(cues_str)
+    save_figs_as_pdf(figs, os.path.join(Fig_Dir, fn))
 
-def fit_single_subject(subject_number, bounds=None, cue=0):
+def fit_single_subject(subject_number, bounds=None, cues=(0,)):
     fn = os.path.join(Data_Behavior_Dir, '{:0>2d}.pkl'.format(subject_number))
     if os.path.isfile(fn) is False:
         print('No data for subject', subject_number)
         return
     df = pd.read_pickle(fn)
-    df = df[df['cue']==cue]
-    ml = ML(df, 4)
+    ml = ML(df, 4, cues)
     r = ml.fit_model(bounds)
     plt.close('all')
     fig, ax = plt.subplots(1, 1)
@@ -286,4 +286,4 @@ def make_learner_df():
     
 if __name__ == '__main__':
     bounds = ((0,1), (0,2))
-    fit_single_subject(int(sys.argv[1]), bounds)
+    fit_single_subject(int(sys.argv[1]), bounds, cues=(0,1))
