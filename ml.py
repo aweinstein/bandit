@@ -22,64 +22,78 @@ Data_Behavior_Dir = 'data_behavior'
 Fig_Dir = 'figs'
 DF_Dir = 'df'
 
-def neg_log_likelihood(alphabeta, df):
-    alpha, beta = alphabeta
-    actions, rewards = df['action'].values, df['reward'].values
-    prob_log = 0
-    # Get from class property when refactor as a class
-    n_actions = sum([s.startswith('Q') for s in df.columns.tolist()])
-    if n_actions > 0:
-        Q = np.zeros(n_actions)
-    else:
-        Q = np.zeros(4)
-    for action, reward in zip(actions, rewards):
-        Q[action] += alpha * (reward - Q[action])
-        prob_log += np.log(softmax(Q, beta)[action])
-    return -prob_log
+class ML(object):
+    def __init__(self, df, n_actions):
+        """The DataFrame df must contain columns 'cue', 'action', and
+        'reward'."""
+        self.df = df
+        self.n_actions = n_actions
+
+    def neg_log_likelihood(self, alphabeta):
+        df = self.df
+        alpha, beta = alphabeta
+        actions, rewards = df['action'].values, df['reward'].values
+        prob_log = 0
+        Q = np.zeros(self.n_actions)
+        for action, reward in zip(actions, rewards):
+            Q[action] += alpha * (reward - Q[action])
+            prob_log += np.log(softmax(Q, beta)[action])
+        return -prob_log
+
+    def ml_estimation(self, method_name='Nelder-Mead', bounds=None):
+        if bounds is None:
+            r = minimize(self.neg_log_likelihood, [0.1,0.1],
+                         method=method_name)
+        else:
+            r = minimize(self.neg_log_likelihood, [0.1,0.1],
+                              method='L-BFGS-B',
+                              bounds=bounds)
+        return r
+
+    def fit_model(self, bounds=None):
+        r = self.ml_estimation('Nelder-Mead', bounds)
+        if r.status != 0:
+            print('trying with Powell')
+            r = self.ml_estimation('Powell', bounds)
+        return r
+
+    def plot_ml(self, ax, alpha, beta, alpha_hat, beta_hat):
+        from itertools import product
+        n = 50
+        alpha_max = 0.2
+        beta_max = 1.3
+        if alpha is not None:
+            alpha_max = alpha_max if alpha < alpha_max else 1.1 * alpha
+            beta_max = beta_max if beta < beta_max else 1.1 * beta
+        if alpha_hat is not None:
+            alpha_max = alpha_max if alpha_hat < alpha_max else 1.1 * alpha_hat
+            beta_max = beta_max if beta_hat < beta_max else 1.1 * beta_hat
+        alphas = np.linspace(0, alpha_max, n)
+        betas = np.linspace(0, beta_max, n)
+        Alpha, Beta = np.meshgrid(alphas, betas)
+        Z = np.zeros(len(Alpha) * len(Beta))
+        for i, (a, b) in enumerate(product(alphas, betas)):
+            Z[i] = self.neg_log_likelihood((a, b))
+        Z.resize((len(alphas), len(betas)))
+        ax.contourf(Alpha, Beta, Z.T, 50, cmap=cm.jet)
+        if alpha is not None:
+            ax.plot(alpha, beta, 'rs', ms=5)
+        if alpha_hat is not None:
+            ax.plot(alpha_hat, beta_hat, 'r+', ms=10)
+        ax.set_xlabel(r'$\alpha$', fontsize=20)
+        ax.set_ylabel(r'$\beta$', fontsize=20)
+        return
     
-def ml_estimation(df, method_name='Nelder-Mead', bounds=None):
-    if bounds is None:
-        r = minimize(neg_log_likelihood, [0.1,0.1], args=(df,),
-                     method=method_name)
-    else:
-        r = minimize(neg_log_likelihood, [0.1,0.1], args=(df,),
-                     method='L-BFGS-B',
-                     bounds=bounds)
-    return r
+    def plot_single_subject(self, subject, ax, r):
+        if r.status == 0:
+            alpha, beta = r.x
+            self.plot_ml(ax, alpha, beta, None, None)
+            title = 'Subject {:d}'.format(subject)
+        else:
+            self.plot_ml(ax, None, None, None, None)
+            title = 'Subject {:d}, not converged'.format(subject)
+        ax.set_title(title)
 
-def fit_model(df, bounds=None):
-    r = ml_estimation(df, 'Nelder-Mead', bounds)
-    if r.status != 0:
-        print('trying with Powell')
-        r = ml_estimation(df, 'Powell', bounds)
-    return r
-
-def plot_ml(ax, df, alpha, beta, alpha_hat, beta_hat):
-    from itertools import product
-    n = 50
-    alpha_max = 0.2
-    beta_max = 1.3
-    if alpha is not None:
-        alpha_max = alpha_max if alpha < alpha_max else 1.1 * alpha
-        beta_max = beta_max if beta < beta_max else 1.1 * beta
-    if alpha_hat is not None:
-        alpha_max = alpha_max if alpha_hat < alpha_max else 1.1 * alpha_hat
-        beta_max = beta_max if beta_hat < beta_max else 1.1 * beta_hat
-    alphas = np.linspace(0, alpha_max, n)
-    betas = np.linspace(0, beta_max, n)
-    Alpha, Beta = np.meshgrid(alphas, betas)
-    Z = np.zeros(len(Alpha) * len(Beta))
-    for i, (a, b) in enumerate(product(alphas, betas)):
-        Z[i] = neg_log_likelihood((a, b), df)
-    Z.resize((len(alphas), len(betas)))
-    ax.contourf(Alpha, Beta, Z.T, 50, cmap=cm.jet)
-    if alpha is not None:
-        ax.plot(alpha, beta, 'rs', ms=5)
-    if alpha_hat is not None:
-        ax.plot(alpha_hat, beta_hat, 'r+', ms=10)
-    ax.set_xlabel(r'$\alpha$', fontsize=20)
-    ax.set_ylabel(r'$\beta$', fontsize=20)
-    return 
 
 def simple_bandit_experiment():
     b = Bandit()
@@ -92,11 +106,12 @@ def simple_bandit_experiment():
     for _ in range(trials):
         agent.run()
     df = agent.get_df()
-    r = ml_estimation(df)
+    ml = ML(df, 2)
+    r = ml.ml_estimation()
     alpha_hat, beta_hat = r.x
     print(r)
     fig, ax = plt.subplots(1, 1)
-    plot_ml(ax, df, alpha, beta, alpha_hat, beta_hat)
+    ml.plot_ml(ax, alpha, beta, alpha_hat, beta_hat)
     plt.show()
 
 def card_bandit_experiment():
@@ -112,24 +127,15 @@ def card_bandit_experiment():
     df = agent.get_df()
     df.to_csv('data.csv', index_label='trial')
     print('Total reward: {:d}\n'.format(df['reward'].sum()))
-    r = ml_estimation(df)
+    ml = ML(df, 4)
+    r = ml.ml_estimation()
     alpha_hat, beta_hat = r.x
     print(r)
 
     fig, ax = plt.subplots(1, 1)
-    plot_ml(ax, df, alpha, beta, alpha_hat, beta_hat)
+    ml.plot_ml(ax, alpha, beta, alpha_hat, beta_hat)
     plt.show()
     globals().update(locals())
-
-def plot_single_subject(df, subject, ax, r):
-    if r.status == 0:
-        alpha, beta = r.x
-        plot_ml(ax, df, alpha, beta, None, None)
-        title = 'Subject {:d}'.format(subject)
-    else:
-        plot_ml(ax, df, None, None, None, None)
-        title = 'Subject {:d}, not converged'.format(subject)
-    ax.set_title(title)
 
 def fit_behavioral_data(bounds=None, cue=0):
     """Fit a model for all subjects.
@@ -144,14 +150,15 @@ def fit_behavioral_data(bounds=None, cue=0):
         print(pkl)
         df = pd.read_pickle(os.path.join(Data_Behavior_Dir, pkl))
         df = df[df['cue']==cue]
-        r = fit_model(df, bounds)
+        ml = ML(df, 4)
+        r = ml.fit_model(bounds)
         alpha, beta = r.x
         data['status'].append(r.message)
         data['alpha'].append(alpha)
         data['beta'].append(beta)
         data['subject'].append(pkl[:2])
         fig, ax = plt.subplots(1, 1)
-        plot_single_subject(df, int(pkl[:2]), ax, r)
+        ml.plot_single_subject(int(pkl[:2]), ax, r)
         figs.append(fig)
         plt.close()
     cols = ('subject', 'alpha', 'beta', 'status')
@@ -170,10 +177,11 @@ def fit_single_subject(subject_number, bounds=None, cue=0):
         return
     df = pd.read_pickle(fn)
     df = df[df['cue']==cue]
-    r = fit_model(df, bounds)
+    ml = ML(df, 4)
+    r = ml.fit_model(bounds)
     plt.close('all')
     fig, ax = plt.subplots(1, 1)
-    plot_single_subject(df, subject_number, ax, r)
+    ml.plot_single_subject(subject_number, ax, r)
     plt.show()
     return r
 
@@ -240,3 +248,63 @@ def make_learner_df():
 if __name__ == '__main__':
     bounds = ((0,1), (0,2))
     fit_single_subject(int(sys.argv[1]), bounds)
+
+
+# def neg_log_likelihood(alphabeta, df):
+#     alpha, beta = alphabeta
+#     actions, rewards = df['action'].values, df['reward'].values
+#     prob_log = 0
+#     # Get from class property when refactor as a class
+#     n_actions = sum([s.startswith('Q') for s in df.columns.tolist()])
+#     if n_actions > 0:
+#         Q = np.zeros(n_actions)
+#     else:
+#         Q = np.zeros(4)
+#     for action, reward in zip(actions, rewards):
+#         Q[action] += alpha * (reward - Q[action])
+#         prob_log += np.log(softmax(Q, beta)[action])
+#     return -prob_log
+    
+# def ml_estimation(df, method_name='Nelder-Mead', bounds=None):
+#     if bounds is None:
+#         r = minimize(neg_log_likelihood, [0.1,0.1], args=(df,),
+#                      method=method_name)
+#     else:
+#         r = minimize(neg_log_likelihood, [0.1,0.1], args=(df,),
+#                      method='L-BFGS-B',
+#                      bounds=bounds)
+#     return r
+
+# def fit_model(df, bounds=None):
+#     r = ml_estimation(df, 'Nelder-Mead', bounds)
+#     if r.status != 0:
+#         print('trying with Powell')
+#         r = ml_estimation(df, 'Powell', bounds)
+#     return r
+
+# def plot_ml(ax, df, alpha, beta, alpha_hat, beta_hat):
+#     from itertools import product
+#     n = 50
+#     alpha_max = 0.2
+#     beta_max = 1.3
+#     if alpha is not None:
+#         alpha_max = alpha_max if alpha < alpha_max else 1.1 * alpha
+#         beta_max = beta_max if beta < beta_max else 1.1 * beta
+#     if alpha_hat is not None:
+#         alpha_max = alpha_max if alpha_hat < alpha_max else 1.1 * alpha_hat
+#         beta_max = beta_max if beta_hat < beta_max else 1.1 * beta_hat
+#     alphas = np.linspace(0, alpha_max, n)
+#     betas = np.linspace(0, beta_max, n)
+#     Alpha, Beta = np.meshgrid(alphas, betas)
+#     Z = np.zeros(len(Alpha) * len(Beta))
+#     for i, (a, b) in enumerate(product(alphas, betas)):
+#         Z[i] = neg_log_likelihood((a, b), df)
+#     Z.resize((len(alphas), len(betas)))
+#     ax.contourf(Alpha, Beta, Z.T, 50, cmap=cm.jet)
+#     if alpha is not None:
+#         ax.plot(alpha, beta, 'rs', ms=5)
+#     if alpha_hat is not None:
+#         ax.plot(alpha_hat, beta_hat, 'r+', ms=10)
+#     ax.set_xlabel(r'$\alpha$', fontsize=20)
+#     ax.set_ylabel(r'$\beta$', fontsize=20)
+#     return 
