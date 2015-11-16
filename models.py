@@ -117,7 +117,7 @@ class AgentCard(object):
 
 
 class BanditCardCues(object):
-    def __init__(self, n_cues=2, probs=(0.8, 0.2)):
+    def __init__(self, n_cues=3, probs=(0.8, 0.2, 0.5)):
         self.actions_bet = (3, 8, 14, 23)
         self.actions = range(len(self.actions_bet))
         self.n_actions = len(self.actions_bet)

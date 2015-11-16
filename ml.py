@@ -16,28 +16,43 @@ from collections import defaultdict
 from matplotlib import cm
 
 from utils import save_figs_as_pdf, softmax
-from models import Bandit, BanditCard, Agent, AgentCard
+from models import Bandit, BanditCard, BanditCardCues
+from models import Agent, AgentCard, AgentCardCues
 
 Data_Behavior_Dir = 'data_behavior'
 Fig_Dir = 'figs'
 DF_Dir = 'df'
 
 class ML(object):
-    def __init__(self, df, n_actions):
-        """The DataFrame df must contain columns 'cue', 'action', and
-        'reward'."""
-        self.df = df
+    def __init__(self, df, n_actions, cues=None):
+        """The DataFrame df must contain columns 'action' and reward'.
+        If `len(cues) > 1`, then it also must include the 'cue' column.
+        """
         self.n_actions = n_actions
-
+        if cues is None:
+            if 'cue' in df.columns:
+                self.cues = (df['cue'].values[0],)
+                print('Using {:d} for the cue.'.format(self.cues[0]))
+            else:
+                self.cues = (0,)
+                df['cue'] = 0
+        else:
+            self.cues = cues
+        if type(cues) is int:
+            self.cues = (cues,)
+        self.df = df
+        
     def neg_log_likelihood(self, alphabeta):
         df = self.df
         alpha, beta = alphabeta
+        df = self.df[self.df['cue'].isin(self.cues)]
         actions, rewards = df['action'].values, df['reward'].values
+        cues = df['cue'].values
         prob_log = 0
-        Q = np.zeros(self.n_actions)
-        for action, reward in zip(actions, rewards):
-            Q[action] += alpha * (reward - Q[action])
-            prob_log += np.log(softmax(Q, beta)[action])
+        Q = dict([[cue, np.zeros(self.n_actions)] for cue in self.cues])
+        for action, reward, cue in zip(actions, rewards, cues):
+            Q[cue][action] += alpha * (reward - Q[cue][action])
+            prob_log += np.log(softmax(Q[cue], beta)[action])
         return -prob_log
 
     def ml_estimation(self, method_name='Nelder-Mead', bounds=None):
@@ -136,6 +151,30 @@ def card_bandit_experiment():
     ml.plot_ml(ax, alpha, beta, alpha_hat, beta_hat)
     plt.show()
     globals().update(locals())
+
+def card_cue_bandit_experiment():
+    b = BanditCardCues()
+    alpha = 0.2
+    beta = 0.5
+    print('alpha: {:.2f} beta: {:.2f}\n'.format(alpha, beta))
+    agent = AgentCardCues(b, alpha, beta)
+    trials = 360*3
+
+    for _ in range(trials):
+        agent.run()
+    df = agent.get_df()
+    df.to_csv('data.csv', index_label='trial')
+
+    ml = ML(df, 4, (0,1))
+    r = ml.ml_estimation()
+    print(r)
+
+    alpha_hat, beta_hat = r.x
+    fig, ax = plt.subplots(1, 1)
+    ml.plot_ml(ax, alpha, beta, alpha_hat, beta_hat)
+    plt.show()
+    globals().update(locals())
+
 
 def fit_behavioral_data(bounds=None, cue=0):
     """Fit a model for all subjects.
@@ -248,63 +287,3 @@ def make_learner_df():
 if __name__ == '__main__':
     bounds = ((0,1), (0,2))
     fit_single_subject(int(sys.argv[1]), bounds)
-
-
-# def neg_log_likelihood(alphabeta, df):
-#     alpha, beta = alphabeta
-#     actions, rewards = df['action'].values, df['reward'].values
-#     prob_log = 0
-#     # Get from class property when refactor as a class
-#     n_actions = sum([s.startswith('Q') for s in df.columns.tolist()])
-#     if n_actions > 0:
-#         Q = np.zeros(n_actions)
-#     else:
-#         Q = np.zeros(4)
-#     for action, reward in zip(actions, rewards):
-#         Q[action] += alpha * (reward - Q[action])
-#         prob_log += np.log(softmax(Q, beta)[action])
-#     return -prob_log
-    
-# def ml_estimation(df, method_name='Nelder-Mead', bounds=None):
-#     if bounds is None:
-#         r = minimize(neg_log_likelihood, [0.1,0.1], args=(df,),
-#                      method=method_name)
-#     else:
-#         r = minimize(neg_log_likelihood, [0.1,0.1], args=(df,),
-#                      method='L-BFGS-B',
-#                      bounds=bounds)
-#     return r
-
-# def fit_model(df, bounds=None):
-#     r = ml_estimation(df, 'Nelder-Mead', bounds)
-#     if r.status != 0:
-#         print('trying with Powell')
-#         r = ml_estimation(df, 'Powell', bounds)
-#     return r
-
-# def plot_ml(ax, df, alpha, beta, alpha_hat, beta_hat):
-#     from itertools import product
-#     n = 50
-#     alpha_max = 0.2
-#     beta_max = 1.3
-#     if alpha is not None:
-#         alpha_max = alpha_max if alpha < alpha_max else 1.1 * alpha
-#         beta_max = beta_max if beta < beta_max else 1.1 * beta
-#     if alpha_hat is not None:
-#         alpha_max = alpha_max if alpha_hat < alpha_max else 1.1 * alpha_hat
-#         beta_max = beta_max if beta_hat < beta_max else 1.1 * beta_hat
-#     alphas = np.linspace(0, alpha_max, n)
-#     betas = np.linspace(0, beta_max, n)
-#     Alpha, Beta = np.meshgrid(alphas, betas)
-#     Z = np.zeros(len(Alpha) * len(Beta))
-#     for i, (a, b) in enumerate(product(alphas, betas)):
-#         Z[i] = neg_log_likelihood((a, b), df)
-#     Z.resize((len(alphas), len(betas)))
-#     ax.contourf(Alpha, Beta, Z.T, 50, cmap=cm.jet)
-#     if alpha is not None:
-#         ax.plot(alpha, beta, 'rs', ms=5)
-#     if alpha_hat is not None:
-#         ax.plot(alpha_hat, beta_hat, 'r+', ms=10)
-#     ax.set_xlabel(r'$\alpha$', fontsize=20)
-#     ax.set_ylabel(r'$\beta$', fontsize=20)
-#     return 
