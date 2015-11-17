@@ -176,39 +176,52 @@ def card_cue_bandit_experiment():
     globals().update(locals())
 
 
-def fit_behavioral_data(bounds=None, cues=(0,)):
+def fit_behavioral_data(bounds=None, cues = ((0,), (1,), (0,1)),
+                        do_plot=False):
     """Fit a model for all subjects.
 
     The data has been previously parsed by parse.py.
     """
     pkls = os.listdir(Data_Behavior_Dir)
     pkls.sort()
-    data = {'alpha':[], 'beta':[], 'subject': [], 'status':[]}
+    data = defaultdict(list)
     figs = []
+    cues_label = dict((cue, ''.join([str(c) for c in cue])) for cue in cues)
     for pkl in pkls:
         print(pkl)
         df = pd.read_pickle(os.path.join(Data_Behavior_Dir, pkl))
-        cues = (0,1)
-        ml = ML(df, 4, cues)
-        r = ml.fit_model(bounds)
-        alpha, beta = r.x
-        data['status'].append(r.message)
-        data['alpha'].append(alpha)
-        data['beta'].append(beta)
+        for cue in cues:
+            ml = ML(df, 4, cue)
+            r = ml.fit_model(bounds)
+            alpha, beta = r.x
+            data[cues_label[cue] + '_alpha'].append(alpha)
+            data[cues_label[cue] + '_beta'].append(beta)
+            data[cues_label[cue] + '_status'].append(r.status)
         data['subject'].append(pkl[:2])
-        fig, ax = plt.subplots(1, 1)
-        ml.plot_single_subject(int(pkl[:2]), ax, r)
-        figs.append(fig)
-        plt.close()
-    cols = ('subject', 'alpha', 'beta', 'status')
+        if do_plot:
+            fig, ax = plt.subplots(1, 1)
+            ml.plot_single_subject(int(pkl[:2]), ax, r)
+            figs.append(fig)
+            plt.close()
+    cols = ['subject']
+    for cue in cues:
+        col = '{c}_alpha {c}_beta {c}_status'.format(c=cues_label[cue]).split()
+        cols.extend(col)
+
     df = pd.DataFrame(data, columns=cols)
-    df.to_csv(os.path.join(DF_Dir, 'fit.csv'))
-    cues_str = ''.join(str(a) for a in cues)
     if bounds is None:
-        fn = 'nllf_unbounded_{:s}.pdf'.format(cues_str)
+        fn = os.path.join(DF_Dir, 'fit_unbouded.csv')
     else:
-        fn = 'nllf_bounded_{:s}.pdf'.format(cues_str)
-    save_figs_as_pdf(figs, os.path.join(Fig_Dir, fn))
+        fn = os.path.join(DF_Dir, 'fit_bounded.csv')
+    df.to_csv(fn, index=False)
+    print('File saved as', fn)
+    if do_plot:
+        cues_str = ''.join(str(a) for a in cues)
+        if bounds is None:
+            fn = 'nllf_unbounded_{:s}.pdf'.format(cues_str)
+        else:
+            fn = 'nllf_bounded_{:s}.pdf'.format(cues_str)
+        save_figs_as_pdf(figs, os.path.join(Fig_Dir, fn))
 
 def fit_single_subject(subject_number, bounds=None, cues=(0,)):
     fn = os.path.join(Data_Behavior_Dir, '{:0>2d}.pkl'.format(subject_number))
