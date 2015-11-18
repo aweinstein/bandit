@@ -24,11 +24,20 @@ Fig_Dir = 'figs'
 DF_Dir = 'df'
 
 class ML(object):
-    def __init__(self, df, n_actions, cues=None, bounds=None):
+    def __init__(self, df, n_actions, cues=None, bounds=None,
+                 model='sample_average'):
         """The DataFrame df must contain columns 'action' and reward'.
         If `len(cues) > 1`, then it also must include the 'cue' column.
+
+        model can be 'sample_average' or 'constant_step_size'
         """
+        if model not in ('sample_average', 'constant_step_size'):
+            raise ValueError("model must be 'sample_average' or"
+                             "'constant_step_size'")
+        if type(cues) is not tuple:
+            raise TypeError('cues must be a tuple')
         self.n_actions = n_actions
+        self.model = model
         if cues is None:
             if 'cue' in df.columns:
                 self.cues = (df['cue'].values[0],)
@@ -51,8 +60,13 @@ class ML(object):
         cues = df['cue'].values
         prob_log = 0
         Q = dict([[cue, np.zeros(self.n_actions)] for cue in self.cues])
+        k = 1
         for action, reward, cue in zip(actions, rewards, cues):
-            Q[cue][action] += alpha * (reward - Q[cue][action])
+            if self.model == 'sample_average':
+                Q[cue][action] += alpha * (reward - Q[cue][action]) / k
+                k += 1
+            else:
+                Q[cue][action] += alpha * (reward - Q[cue][action])
             prob_log += np.log(softmax(Q[cue], beta)[action])
         return -prob_log
 
@@ -179,8 +193,8 @@ def card_cue_bandit_experiment():
     globals().update(locals())
 
 
-def fit_behavioral_data(bounds=None, cues = ((0,), (1,), (0,1)),
-                        do_plot=False):
+def fit_behavioral_data(bounds=None, cues=((0,),(1,),(0,1)),
+                        do_plot=False, model='sample-average'):
     """Fit a model for all subjects.
 
     The data has been previously parsed by parse.py.
@@ -190,11 +204,12 @@ def fit_behavioral_data(bounds=None, cues = ((0,), (1,), (0,1)),
     data = defaultdict(list)
     figs = []
     cues_label = dict((cue, ''.join([str(c) for c in cue])) for cue in cues)
-    for pkl in pkls[:2]:
+    for pkl in pkls:
         print(pkl)
         df = pd.read_pickle(os.path.join(Data_Behavior_Dir, pkl))
         for cue in cues:
-            ml = ML(df, 4, cue, bounds)
+            print('\tcue', cue)
+            ml = ML(df, 4, cue, bounds, model)
             r = ml.fit_model()
             alpha, beta = r.x
             data[cues_label[cue] + '_alpha'].append(alpha)
@@ -215,11 +230,12 @@ def fit_behavioral_data(bounds=None, cues = ((0,), (1,), (0,1)),
     df = pd.DataFrame(data, columns=cols)
     cues_str = ''.join(str(cues_label[a]) for a in cues)
     bound_str = 'unbounded' if bounds is None else 'bounded'
-    fn = os.path.join(DF_Dir, 'fit_{}_{}.csv'.format(cues_str, bound_str))
+    fn = os.path.join(DF_Dir,
+                      'fit_{}_{}_{}.csv'.format(cues_str, bound_str, model))
     df.to_csv(fn, index=False)
     print('File saved as', fn)
     if do_plot:
-        fn = 'nllf_{}_{}.pdf'.format(cues_str, bound_str)
+        fn = 'nllf_{}_{}_{}.pdf'.format(cues_str, bound_str, model)
         save_figs_as_pdf(figs, os.path.join(Fig_Dir, fn))
 
 def fit_single_subject(subject_number, bounds=None, cues=(0,)):
