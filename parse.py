@@ -50,8 +50,5 @@ def get_hipomania_scores():
     fn = os.path.join(DF_Dir, 'HypomaniaData.xlsx')
     df = pd.read_excel(fn)
     hps_df = df[['PN', 'HPS']]
-    hps_df.rename(columns={'PN':'subject'}, inplace=True)
-    hps_df.to_pickle(os.path.join(DF_Dir, 'hps_df.pkl'))
-
-
-
+    hps_df = hps_df.rename(columns={'PN':'subject'})
+    hps_df.to_pickle(os.path.join(DF_Dir, 'df_hps.pkl'))
