@@ -24,7 +24,7 @@ Fig_Dir = 'figs'
 DF_Dir = 'df'
 
 class ML(object):
-    def __init__(self, df, n_actions, cues=None):
+    def __init__(self, df, n_actions, cues=None, bounds=None):
         """The DataFrame df must contain columns 'action' and reward'.
         If `len(cues) > 1`, then it also must include the 'cue' column.
         """
@@ -41,6 +41,7 @@ class ML(object):
         if type(cues) is int:
             self.cues = (cues,)
         self.df = df
+        self.bounds = bounds
         
     def neg_log_likelihood(self, alphabeta):
         df = self.df
@@ -55,21 +56,21 @@ class ML(object):
             prob_log += np.log(softmax(Q[cue], beta)[action])
         return -prob_log
 
-    def ml_estimation(self, method_name='Nelder-Mead', bounds=None):
-        if bounds is None:
+    def ml_estimation(self, method_name='Nelder-Mead'):
+        if self.bounds is None:
             r = minimize(self.neg_log_likelihood, [0.1,0.1],
                          method=method_name)
         else:
             r = minimize(self.neg_log_likelihood, [0.1,0.1],
                               method='L-BFGS-B',
-                              bounds=bounds)
+                              bounds=self.bounds)
         return r
 
     def fit_model(self, bounds=None):
-        r = self.ml_estimation('Nelder-Mead', bounds)
+        r = self.ml_estimation('Nelder-Mead')
         if r.status != 0:
             print('trying with Powell')
-            r = self.ml_estimation('Powell', bounds)
+            r = self.ml_estimation('Powell')
         return r
 
     def plot_ml(self, ax, alpha, beta, alpha_hat, beta_hat):
@@ -191,8 +192,8 @@ def fit_behavioral_data(bounds=None, cues = ((0,), (1,), (0,1)),
         print(pkl)
         df = pd.read_pickle(os.path.join(Data_Behavior_Dir, pkl))
         for cue in cues:
-            ml = ML(df, 4, cue)
-            r = ml.fit_model(bounds)
+            ml = ML(df, 4, cue, bounds)
+            r = ml.fit_model()
             alpha, beta = r.x
             data[cues_label[cue] + '_alpha'].append(alpha)
             data[cues_label[cue] + '_beta'].append(beta)
@@ -229,8 +230,8 @@ def fit_single_subject(subject_number, bounds=None, cues=(0,)):
         print('No data for subject', subject_number)
         return
     df = pd.read_pickle(fn)
-    ml = ML(df, 4, cues)
-    r = ml.fit_model(bounds)
+    ml = ML(df, 4, cues, bounds)
+    r = ml.fit_model()
     plt.close('all')
     fig, ax = plt.subplots(1, 1)
     ml.plot_single_subject(subject_number, ax, r)
