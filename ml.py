@@ -100,14 +100,16 @@ class ML(object):
         ax.set_ylabel(r'$\beta$', fontsize=20)
         return
     
-    def plot_single_subject(self, subject, ax, r):
+    def plot_single_subject(self, ax, r, subject, cue):
+        alpha, beta = r.x
+        converged = ('yes', 'no')[r.status]
+        cue = ''.join([str(c) for c in self.cues])
+        title = 'Subject: {}, cue: {}, converged: {}'.format(subject, cue,
+                                                             converged)
         if r.status == 0:
-            alpha, beta = r.x
             self.plot_ml(ax, alpha, beta, None, None)
-            title = 'Subject {:d}'.format(subject)
         else:
             self.plot_ml(ax, None, None, None, None)
-            title = 'Subject {:d}, not converged'.format(subject)
         ax.set_title(title)
 
 
@@ -188,7 +190,7 @@ def fit_behavioral_data(bounds=None, cues = ((0,), (1,), (0,1)),
     data = defaultdict(list)
     figs = []
     cues_label = dict((cue, ''.join([str(c) for c in cue])) for cue in cues)
-    for pkl in pkls:
+    for pkl in pkls[:2]:
         print(pkl)
         df = pd.read_pickle(os.path.join(Data_Behavior_Dir, pkl))
         for cue in cues:
@@ -198,30 +200,26 @@ def fit_behavioral_data(bounds=None, cues = ((0,), (1,), (0,1)),
             data[cues_label[cue] + '_alpha'].append(alpha)
             data[cues_label[cue] + '_beta'].append(beta)
             data[cues_label[cue] + '_status'].append(r.status)
+            if do_plot:
+                fig, ax = plt.subplots(1, 1)
+                ml.plot_single_subject(ax, r, int(pkl[:2]), cue)
+                figs.append(fig)
+                plt.close()
+
         data['subject'].append(pkl[:2])
-        if do_plot:
-            fig, ax = plt.subplots(1, 1)
-            ml.plot_single_subject(int(pkl[:2]), ax, r)
-            figs.append(fig)
-            plt.close()
     cols = ['subject']
     for cue in cues:
         col = '{c}_alpha {c}_beta {c}_status'.format(c=cues_label[cue]).split()
         cols.extend(col)
 
     df = pd.DataFrame(data, columns=cols)
-    if bounds is None:
-        fn = os.path.join(DF_Dir, 'fit_unbouded.csv')
-    else:
-        fn = os.path.join(DF_Dir, 'fit_bounded.csv')
+    cues_str = ''.join(str(cues_label[a]) for a in cues)
+    bound_str = 'unbounded' if bounds is None else 'bounded'
+    fn = os.path.join(DF_Dir, 'fit_{}_{}.csv'.format(cues_str, bound_str))
     df.to_csv(fn, index=False)
     print('File saved as', fn)
     if do_plot:
-        cues_str = ''.join(str(a) for a in cues)
-        if bounds is None:
-            fn = 'nllf_unbounded_{:s}.pdf'.format(cues_str)
-        else:
-            fn = 'nllf_bounded_{:s}.pdf'.format(cues_str)
+        fn = 'nllf_{}_{}.pdf'.format(cues_str, bound_str)
         save_figs_as_pdf(figs, os.path.join(Fig_Dir, fn))
 
 def fit_single_subject(subject_number, bounds=None, cues=(0,)):
@@ -234,7 +232,7 @@ def fit_single_subject(subject_number, bounds=None, cues=(0,)):
     r = ml.fit_model()
     plt.close('all')
     fig, ax = plt.subplots(1, 1)
-    ml.plot_single_subject(subject_number, ax, r)
+    ml.plot_single_subject(ax, r, subject_number, cues)
     plt.show()
     return r
 
