@@ -14,8 +14,8 @@ def matlab_to_dataframe():
     One dataframe per subject is created. The dataframe is pickled and saved.
     """
     dir_name = 'data'
-    for fname in os.listdir(dir_name):
-        if fname.endswith('.mat'):
+    for fname in sorted(os.listdir(dir_name)):
+        if fname.endswith('.mat') and len(fname) == 7:
             s = fname[1:3]
             print('Reading', fname, '...')
             data_ml = loadmat(os.path.join(dir_name, fname))
