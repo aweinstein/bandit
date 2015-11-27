@@ -75,12 +75,12 @@ class ML(object):
             r = minimize(self.neg_log_likelihood, [0.1,0.1],
                          method=method_name)
         else:
-            r = minimize(self.neg_log_likelihood, [0.1,0.1],
+            r = minimize(self.neg_log_likelihood, [0.1,0.2],
                               method='L-BFGS-B',
                               bounds=self.bounds)
         return r
 
-    def fit_model(self, bounds=None):
+    def fit_model(self):
         r = self.ml_estimation('Nelder-Mead')
         if r.status != 0:
             print('trying with Powell')
@@ -231,7 +231,7 @@ def fit_behavioral_data(bounds=None, cues=((0,),(1,),(0,1)),
     cues_str = ''.join(str(cues_label[a]) for a in cues)
     bound_str = 'unbounded' if bounds is None else 'bounded'
     fn = os.path.join(DF_Dir,
-                      'fit_{}_{}_{}.csv'.format(cues_str, bound_str, model))
+                      'fit_{}_{}_{}.csv'.format(model, cues_str, bound_str))
     df.to_csv(fn, index=False)
     print('File saved as', fn)
     if do_plot:
