@@ -16,4 +16,3 @@ def softmax(Qs, beta):
     num = np.exp(Qs * beta)
     den = np.exp(Qs * beta).sum()
     return num / den
-    

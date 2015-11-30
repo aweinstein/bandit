@@ -23,7 +23,7 @@ class ContextualBandit(object):
 
     def get_context_list(self):
         return list(self.contexts.keys())
-        
+
     def get_context(self):
         # Note: Nothing prevents the agent to call this functions several
         # times, without calling self.reward in between. Potentially this
@@ -41,7 +41,7 @@ class ContextualBandit(object):
         else:
             r = -action
         return r
-        
+
 class ContextualAgent(object):
     def __init__(self, bandit, epsilon=None, tau=None, Q_init=None, alpha=None,
                  verbose=False):
@@ -55,15 +55,15 @@ class ContextualAgent(object):
         self.alpha = alpha
         self.verbose = verbose
         self.reset()
-        
+
     def run(self):
         context = self.bandit.get_context()
         action = self.choose_action(context)
         reward = self.bandit.reward(self.actions[action])
-        
+
         # Update action-value
         self.update_action_value(context, action, reward)
- 
+
         # Keep track of performance
         self.log['context'].append(context)
         self.log['reward'].append(reward)
@@ -73,7 +73,7 @@ class ContextualAgent(object):
         self.log['Q(c,8)'].append(self.Q[context][2])
         self.log['Q(c,3)'].append(self.Q[context][3])
 
-    def choose_action_greedy(self, context):  
+    def choose_action_greedy(self, context):
         if np.random.uniform() < self.epsilon:
             action = np.random.choice(self.bandit.n)
         else:
@@ -85,7 +85,7 @@ class ContextualAgent(object):
         actions = range(self.n)
         action = np.random.choice(actions, p=p)
         return action
-        
+
     def update_action_value_sample_average(self, context, action, reward):
         k = self.k_actions[context][action]
         self.Q[context][action] +=  ((1 / k) *
@@ -120,7 +120,7 @@ class ContextualAgent(object):
         if self.epsilon is not None:
             self.choose_action = self.choose_action_greedy
             if self.verbose:
-                print('Using epsilon-greedy with epsilon ' 
+                print('Using epsilon-greedy with epsilon '
                       '{:.2f}.'.format(self.epsilon))
         elif self.tau:
             self.choose_action = self.choose_action_softmax
@@ -129,8 +129,8 @@ class ContextualAgent(object):
         else:
             print('Error: epsilon or tau must be set')
             sys.exit(-1)
-            
-        self.log = {'context':[], 'reward':[], 'action':[], 
+
+        self.log = {'context':[], 'reward':[], 'action':[],
                     'Q(c,23)':[], 'Q(c,14)':[], 'Q(c,8)':[], 'Q(c,3)': []}
 
 
@@ -143,7 +143,7 @@ def softmax(Qs, tau):
 def sanity_check():
     """Check that the interaction and bookkeeping is OK.
 
-    Set the agent to epsilon equal to 0.99. This makes 
+    Set the agent to epsilon equal to 0.99. This makes
     almost all the actions to be selected uniformly at random.
     The action value for each context should follow the expected
     reward for each context.
@@ -173,10 +173,10 @@ def run_single_softmax_experiment(tau, alpha):
     cb = ContextualBandit()
     ca = ContextualAgent(cb, tau=tau, alpha=alpha)
     steps = 300
-    
+
     for _ in range(steps):
         ca.run()
-    df = DataFrame(ca.log, columns=('context', 'action', 'reward', 'Q(c,23)', 
+    df = DataFrame(ca.log, columns=('context', 'action', 'reward', 'Q(c,23)',
                                     'Q(c,14)', 'Q(c,8)', 'Q(c,3)'))
     fn = 'softmax_experiment.csv'
     #df.to_csv(fn, index=False)
@@ -198,7 +198,7 @@ def softmax_trial(tau, alpha):
             ca.run()
         reward_trials[i] = sum(ca.log['reward'])
     return (tau, alpha, reward_trials.mean(), reward_trials.std())
-    
+
 def run_grid_search_softmax_exp():
     """Grid search of optimal tau and alpha."""
     print('Running a contextual bandit experiment')
@@ -215,6 +215,6 @@ def run_grid_search_softmax_exp():
     print('Best:')
     print(df.loc[df['tot_reward_mean'].idxmax()])
     globals().update(locals())
-    
+
 if __name__ == '__main__':
     run_grid_search_softmax_exp()

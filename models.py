@@ -55,7 +55,7 @@ class Agent(object):
         action = np.random.choice(actions, p=p)
         reward = self.bandit.reward(action)
         self.Q[action] += self.alpha * (reward - self.Q[action])
-        
+
         self.log['reward'].append(reward)
         self.log['action'].append(action)
         self.log['Q(0)'].append(self.Q[0])
@@ -102,7 +102,7 @@ class AgentCard(object):
         action = np.random.choice(actions, p=p)
         reward = self.bandit.reward(action)
         self.Q[action] += self.alpha * (reward - self.Q[action])
-        
+
         self.log['reward'].append(reward)
         self.log['action'].append(action)
         self.log['Q(0)'].append(self.Q[0])
@@ -128,7 +128,7 @@ class BanditCardCues(object):
     def get_cue(self):
         self.cue = np.random.choice(self.cues)
         return self.cue
-        
+
     def reward(self, action):
         """Return reward given the action.
 
@@ -162,7 +162,7 @@ class AgentCardCues(object):
         action = np.random.choice(actions, p=p)
         reward = self.bandit.reward(action)
         self.Q[cue, action] += self.alpha * (reward - self.Q[cue, action])
-        
+
         self.log['reward'].append(reward)
         self.log['action'].append(action)
         self.log['cue'].append(cue)
@@ -176,7 +176,7 @@ class AgentCardCues(object):
             columns.append('Q({:d},{:d})'.format(cue, action))
         df = pd.DataFrame(self.log, columns=columns)
         return df
-        
+
 
 if __name__ == '__main__':
     bandit = BanditCardCues()

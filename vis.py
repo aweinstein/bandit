@@ -48,7 +48,7 @@ def plot_actions(cue=0, fn='all_data.pkl'):
                          linewidths=0.4)
             ax.eventplot(pos_lose, lineoffsets=3.5, linelength=0.75,
                          color='r', linewidths=0.4)
-    
+
     if cue in [0, 1, 2]:
         fn = 'actions_{:d}_{}.pdf'.format(cue, fn)
     else:
@@ -64,7 +64,7 @@ def plot_optimum():
     plt.savefig(os.path.join(Fig_Dir, 'n_optimum.pdf'))
     plt.show()
 
-def scatter_alpha_beta_hps():   
+def scatter_alpha_beta_hps():
     fn = 'fit_0101_unbounded_sample_average.csv'
     df_ab = pd.read_csv(os.path.join(DF_Dir, fn))
     df_hps = pd.read_pickle(os.path.join(DF_Dir, 'df_hps.pkl'))

@@ -42,7 +42,7 @@ def liamcsv_to_dataframe():
             if fname[0] == '1':
                 subject = fname[1:3]
             else:
-                subject = fname[:2] 
+                subject = fname[:2]
             df = pd.read_csv(os.path.join(dir_name, fname))
             new_names = {'Cue':'cue', 'Choice':'action', 'Outcome':'reward'}
             df.rename(columns=new_names, inplace=True)

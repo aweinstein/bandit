@@ -51,7 +51,7 @@ class ML(object):
             self.cues = (cues,)
         self.df = df
         self.bounds = bounds
-        
+
     def neg_log_likelihood(self, alphabeta):
         df = self.df
         alpha, beta = alphabeta
@@ -113,7 +113,7 @@ class ML(object):
         ax.set_xlabel(r'$\alpha$', fontsize=20)
         ax.set_ylabel(r'$\beta$', fontsize=20)
         return
-    
+
     def plot_single_subject(self, ax, r, subject, cue):
         alpha, beta = r.x
         converged = ('yes', 'no')[r.status]
@@ -305,13 +305,13 @@ def make_learner_df():
             n_optimum['block'].append(i + 1)
             n_optimum['n_optimum'].append(n)
             n_optimum['learner'].append(learner)
-    
+
     df_learners = pd.DataFrame(pd.Series(learners), columns=['learner'])
     df_learners.index.set_names('subject', inplace=True)
     cols = ['subject', 'block', 'n_optimum', 'learner']
     df_n_optimum = pd.DataFrame(n_optimum, columns=cols)
     return df_learners, df_n_optimum
-    
+
 if __name__ == '__main__':
     bounds = ((0,1), (0,2))
     fit_single_subject(int(sys.argv[1]), bounds, cues=(0,1))

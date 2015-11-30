@@ -31,14 +31,14 @@ class Agent(object):
         self.Q_init = Q_init
         self.alpha = alpha
         self.reset()
-        
+
     def run(self):
         action = self.choose_action()
         reward = self.bandit.reward(action)
-        
+
         # Update action-value
         self.update_action_value(action, reward)
- 
+
         # Keep track of performance
         self.rewards_seq.append(reward)
         self.actions.append(action)
@@ -58,7 +58,7 @@ class Agent(object):
         actions = range(self.n)
         action = np.random.choice(actions, p=p)
         return action
-        
+
     def update_action_value_sample_average(self, action, reward):
         k = self.k_actions[action]
         self.Q[action] +=  (1 / k) * (reward - self.Q[action])
@@ -139,7 +139,7 @@ def run_experiment(n_bandits, steps, epsilon=None, tau=None, Q_init=None,
         average_rewards[i,:] = agent.rewards_seq
         percentage_optimals[i,:] = agent.optimal_actions
     return average_rewards, percentage_optimals
-         
+
 
 def figure_2_1():
     """Replicate figure 2.1 of Sutton and Barto's book."""
@@ -151,7 +151,7 @@ def figure_2_1():
         ar, po = run_experiment(2000, 1000, epsilon)
         ars.append(np.mean(ar, 0))
         pos.append(np.mean(po, 0))
-        
+
     # plot the results
     plt.close('all')
     f, (ax1, ax2) = plt.subplots(2)
@@ -180,7 +180,7 @@ def figure_2_4():
                                 alpha=0.1)
         ars.append(np.mean(ar, 0))
         pos.append(np.mean(po, 0))
-        
+
     # plot the results
     plt.close('all')
     f, (ax1, ax2) = plt.subplots(2)
@@ -208,7 +208,7 @@ def softmax_experiment():
         ars.append
         ars.append(np.mean(ar, 0))
         pos.append(np.mean(po, 0))
-        
+
     # plot the results
     plt.close('all')
     f, (ax1, ax2) = plt.subplots(2)
