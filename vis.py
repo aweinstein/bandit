@@ -1,14 +1,17 @@
 import os
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+from matplotlib import cm
+from matplotlib.colors import Normalize
 
 Fig_Dir = 'figs'
 DF_Dir = 'df'
 
-def plot_actions(cue=0):
+def plot_actions(cue=0, fn='all_data_liam.pkl'):
     d_map = {3:1, 8:2, 14:3, 23:4}
-    df = pd.read_pickle(os.path.join(DF_Dir, 'all_data.pkl'))
+    df = pd.read_pickle(os.path.join(DF_Dir, fn))
     #df['cue'] = df['cue'].apply(lambda x: d_map[x])
     if cue in [0, 1, 2]:
         df = df.loc[df['cue'] == cue]
@@ -47,9 +50,9 @@ def plot_actions(cue=0):
                          color='r', linewidths=0.4)
     
     if cue in [0, 1, 2]:
-        fn = 'actions_{:d}.pdf'.format(cue)
+        fn = 'actions_{:d}_{}.pdf'.format(cue, fn)
     else:
-        fn = 'actions_all.pdf'
+        fn = 'actions_all_{}.pdf'.format(fn)
     plt.savefig(os.path.join(Fig_Dir, fn))
     plt.show()
     globals().update(locals())
@@ -59,6 +62,24 @@ def plot_optimum():
     plt.close('all')
     sns.factorplot(data=df, x='block', y='n_optimum', hue='learner', aspect=2.5)
     plt.savefig(os.path.join(Fig_Dir, 'n_optimum.pdf'))
+    plt.show()
+
+def scatter_alpha_beta_hps():   
+    fn = 'fit_0101_unbounded_sample_average.csv'
+    df_ab = pd.read_csv(os.path.join(DF_Dir, fn))
+    df_hps = pd.read_pickle(os.path.join(DF_Dir, 'df_hps.pkl'))
+    df_hps['HPS_q'] = df_hps['HPS'].apply(lambda x: np.digitize(x, [0,18,29]))
+    df_ab = df_ab.merge(df_hps, on='subject', how='left')
+    # x_key, y_key = '0_alpha', '1_alpha'
+    x_key, y_key = '0_beta', '1_beta'
+    x_status, y_status = '0_status', '1_status'
+    df_ab = df_ab[(df_ab[x_status]==0) & (df_ab[y_status]==0)]
+    x, y = df_ab[x_key], df_ab[y_key]
+    hps = df_ab['HPS_q']
+    plt.close('all')
+    fig = plt.scatter(x, y, c=hps, cmap=cm.jet)
+    # plt.xlabel('$\alpha$')
+    # plt.ylabel('$\beta$')
     plt.show()
 
 if __name__ == '__main__':

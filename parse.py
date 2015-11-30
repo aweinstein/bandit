@@ -34,15 +34,39 @@ def matlab_to_dataframe():
             print('DataFrame saved in', df_file)
             df.to_pickle(df_file)
 
-def concat_all_dataframes():
+def liamcsv_to_dataframe():
+    dir_name = 'liam'
+    for fname in os.listdir(dir_name):
+        if fname.endswith('.csv'):
+            if fname[0] == '1':
+                subject = fname[1:3]
+            else:
+                subject = fname[:2] 
+            df = pd.read_csv(os.path.join(dir_name, fname))
+            new_names = {'Cue':'cue', 'Choice':'action', 'Outcome':'reward'}
+            df.rename(columns=new_names, inplace=True)
+            df.index.name = 'trial'
+            d_map = {3:0, 8:1, 14:2, 23:3}
+            df['action'] = df['action'].apply(lambda x: d_map[x])
+            df['cue'] = df['cue'].apply(lambda x: x - 1)
+            data_dir = Data_Dir + '_liam'
+            df_file = os.path.join(data_dir, str(subject) + '_liam' + '.pkl')
+            df.to_pickle(df_file)
+            print('Processing file {}, subject {}. '
+                  'File saved as {}'.format(fname, subject, df_file))            
+
+
+def concat_all_dataframes(data_dir=None, all_data_fn='all_data.pkl'):
+    if data_dir is None:
+        data_dir = Data_Dir
     print('Concatenating the subject DFs')
-    pkls = os.listdir(Data_Dir)
+    pkls = os.listdir(data_dir)
     pkls.sort()
     subjects = [int(s[:2]) for s in pkls]
-    dfs = (pd.read_pickle(os.path.join(Data_Dir,fn)) for fn in pkls)
+    dfs = (pd.read_pickle(os.path.join(data_dir,fn)) for fn in pkls)
     df_all = pd.concat(dfs, keys=subjects)
     df_all.index.set_names('subject', 0, inplace=True)
-    fn = os.path.join(DF_Dir,'all_data.pkl')
+    fn = os.path.join(DF_Dir, all_data_fn)
     df_all.to_pickle(fn)
     print('DF save as', fn)
 
