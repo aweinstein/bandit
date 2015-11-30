@@ -5,7 +5,7 @@ import os
 import pandas as pd
 from scipy.io import loadmat
 
-Data_Dir = 'data_behavior'
+Data_Dir = 'data_behavior_liam'
 DF_Dir = 'df'
 
 def matlab_to_dataframe():
@@ -14,6 +14,7 @@ def matlab_to_dataframe():
     One dataframe per subject is created. The dataframe is pickled and saved.
     """
     dir_name = 'data'
+    data_dir = 'data_behavior'
     for fname in sorted(os.listdir(dir_name)):
         if fname.endswith('.mat') and len(fname) == 7:
             s = fname[1:3]
@@ -30,12 +31,12 @@ def matlab_to_dataframe():
             d_map = {3:0, 8:1, 14:2, 23:3}
             df['action'] = df['action'].apply(lambda x: d_map[x])
             df['cue'] = df['cue'].apply(lambda x: x - 1)
-            df_file = os.path.join(Data_Dir, s + '.pkl')
+            df_file = os.path.join(data_dir, s + '.pkl')
             print('DataFrame saved in', df_file)
             df.to_pickle(df_file)
 
 def liamcsv_to_dataframe():
-    dir_name = 'liam'
+    dir_name = 'data_liam'
     for fname in os.listdir(dir_name):
         if fname.endswith('.csv'):
             if fname[0] == '1':
@@ -53,7 +54,7 @@ def liamcsv_to_dataframe():
             df_file = os.path.join(data_dir, str(subject) + '_liam' + '.pkl')
             df.to_pickle(df_file)
             print('Processing file {}, subject {}. '
-                  'File saved as {}'.format(fname, subject, df_file))            
+                  'File saved as {}'.format(fname, subject, df_file))
 
 
 def concat_all_dataframes(data_dir=None, all_data_fn='all_data.pkl'):

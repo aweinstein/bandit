@@ -9,7 +9,7 @@ from matplotlib.colors import Normalize
 Fig_Dir = 'figs'
 DF_Dir = 'df'
 
-def plot_actions(cue=0, fn='all_data_liam.pkl'):
+def plot_actions(cue=0, fn='all_data.pkl'):
     d_map = {3:1, 8:2, 14:3, 23:4}
     df = pd.read_pickle(os.path.join(DF_Dir, fn))
     #df['cue'] = df['cue'].apply(lambda x: d_map[x])
