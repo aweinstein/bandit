@@ -4,6 +4,7 @@ The data for each subjet is save as a Pandas DataFrame."""
 import os
 import pandas as pd
 from scipy.io import loadmat
+import numpy as np
 
 Data_Dir = 'data_behavior_liam'
 DF_Dir = 'df'
@@ -76,4 +77,9 @@ def get_hipomania_scores():
     df = pd.read_excel(fn)
     hps_df = df[['PN', 'HPS']]
     hps_df = hps_df.rename(columns={'PN':'subject'})
-    hps_df.to_pickle(os.path.join(DF_Dir, 'df_hps.pkl'))
+    thresholds = [0,18,29] # thresholds for setting low, medium, and high HPS
+    levels = hps_df['HPS'].apply(lambda x: np.digitize(x, thresholds))
+    hps_df['HPS_level'] = levels
+    fn = os.path.join(DF_Dir, 'hps_df.pkl')
+    hps_df.to_pickle(fn)
+    print('HPS scores saved in', fn)
