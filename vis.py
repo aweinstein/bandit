@@ -65,7 +65,7 @@ def plot_optimum():
     plt.show()
 
 def scatter_alpha_beta_hps():
-    fn = 'fit_0101_unbounded_sample_average.csv'
+    fn = 'fit_constant_step_size_0101_bounded.csv'
     df_ab = pd.read_csv(os.path.join(DF_Dir, fn))
     df_hps = pd.read_pickle(os.path.join(DF_Dir, 'df_hps.pkl'))
     df_hps['HPS_q'] = df_hps['HPS'].apply(lambda x: np.digitize(x, [0,18,29]))

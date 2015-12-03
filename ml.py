@@ -7,13 +7,13 @@ Decision making, affect, and learning: Attention and performance XXIII,
 vol. 23, p. 1, 2011.
 """
 import os
-import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from collections import defaultdict
 from matplotlib import cm
+from sklearn import tree
 
 from utils import save_figs_as_pdf, softmax
 from models import Bandit, BanditCard, BanditCardCues
@@ -75,7 +75,7 @@ class ML(object):
             r = minimize(self.neg_log_likelihood, [0.1,0.1],
                          method=method_name)
         else:
-            r = minimize(self.neg_log_likelihood, [0.1,0.2],
+            r = minimize(self.neg_log_likelihood, [0.1,0.1],
                               method='L-BFGS-B',
                               bounds=self.bounds)
         return r
@@ -221,13 +221,17 @@ def fit_behavioral_data(bounds=None, cues=((0,),(1,),(0,1)),
                 figs.append(fig)
                 plt.close()
 
-        data['subject'].append(pkl[:2])
+        data['subject'].append(int(pkl[:2]))
     cols = ['subject']
     for cue in cues:
         col = '{c}_alpha {c}_beta {c}_status'.format(c=cues_label[cue]).split()
         cols.extend(col)
 
     df = pd.DataFrame(data, columns=cols)
+    # Add HPS data to the data frame.
+    hps = pd.read_pickle(os.path.join(DF_Dir, 'hps_df.pkl'))
+    df = df.merge(hps, on='subject', how='left')
+
     cues_str = ''.join(str(cues_label[a]) for a in cues)
     bound_str = 'unbounded' if bounds is None else 'bounded'
     fn = os.path.join(DF_Dir,
@@ -312,6 +316,37 @@ def make_learner_df():
     df_n_optimum = pd.DataFrame(n_optimum, columns=cols)
     return df_learners, df_n_optimum
 
+def fit_all():
+    bounds = ((0,1), (0,1))
+    #fit_behavioral_data(model='constant_step_size')
+    fit_behavioral_data(bounds=bounds, model='constant_step_size',
+                        do_plot=False)
+
+def classifier():
+    """Create an HPS classifier using the alpha-beta."""
+    fn_fit = os.path.join(DF_Dir, 'fit_constant_step_size_0101_bounded.csv')
+    fit = pd.read_csv(fn_fit)
+    print('Using data from', fn_fit)
+    X = fit[['0_alpha', '0_beta', '1_alpha', '1_beta']].values
+    y = fit['HPS_level'].values
+
+    clf = tree.DecisionTreeClassifier(max_depth=4)
+    clf.fit(X, y)
+    from sklearn.externals.six import StringIO
+    import pydot_ng as pydot
+    dot_data = StringIO()
+    feature_names = ['a0', 'b0', 'a1', 'b1']
+    target_names = ['low', 'medium', 'high']
+    tree.export_graphviz(clf, out_file=dot_data,
+                         feature_names=feature_names,
+                         class_names=target_names,
+                         filled=True, rounded=True,
+                         special_characters=True)
+    graph = pydot.graph_from_dot_data(dot_data.getvalue())
+    graph.write_pdf("iris.pdf")
+    globals().update(locals())
+
 if __name__ == '__main__':
-    bounds = ((0,1), (0,2))
-    fit_single_subject(int(sys.argv[1]), bounds, cues=(0,1))
+    # bounds = ((0,1), (0,2))
+    # fit_single_subject(int(sys.argv[1]), bounds, cues=(0,1))
+    classifier()
