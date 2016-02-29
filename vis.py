@@ -48,12 +48,14 @@ def plot_actions(cue=0, fn='all_data.pkl'):
                          linewidths=0.4)
             ax.eventplot(pos_lose, lineoffsets=3.5, linelength=0.75,
                          color='r', linewidths=0.4)
-
+    fn = os.path.splitext(fn)[0]
     if cue in [0, 1, 2]:
         fn = 'actions_{:d}_{}.pdf'.format(cue, fn)
     else:
         fn = 'actions_all_{}.pdf'.format(fn)
-    plt.savefig(os.path.join(Fig_Dir, fn))
+    fn = os.path.join(Fig_Dir, fn)
+    plt.savefig(fn)
+    print('Figure saved as', fn)
     plt.show()
     globals().update(locals())
 
