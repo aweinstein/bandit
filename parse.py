@@ -6,7 +6,7 @@ import pandas as pd
 from scipy.io import loadmat
 import numpy as np
 
-Data_Dir = 'data_behavior_liam'
+Data_Dir = 'data_behavior'
 DF_Dir = 'df'
 
 def matlab_to_dataframe():
@@ -51,8 +51,8 @@ def liamcsv_to_dataframe():
             d_map = {3:0, 8:1, 14:2, 23:3}
             df['action'] = df['action'].apply(lambda x: d_map[x])
             df['cue'] = df['cue'].apply(lambda x: x - 1)
-            data_dir = Data_Dir + '_liam'
-            df_file = os.path.join(data_dir, str(subject) + '_liam' + '.pkl')
+            data_dir = Data_Dir
+            df_file = os.path.join(data_dir, str(subject) + '.pkl')
             df.to_pickle(df_file)
             print('Processing file {}, subject {}. '
                   'File saved as {}'.format(fname, subject, df_file))
@@ -83,3 +83,7 @@ def get_hipomania_scores():
     fn = os.path.join(DF_Dir, 'hps_df.pkl')
     hps_df.to_pickle(fn)
     print('HPS scores saved in', fn)
+
+if __name__ == '__main__':
+    liamcsv_to_dataframe()
+    concat_all_dataframes()
