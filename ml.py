@@ -32,7 +32,7 @@ class ML(object):
         model can be 'sample_average' or 'constant_step_size'
         """
         if model not in ('sample_average', 'constant_step_size'):
-            raise ValueError("model must be 'sample_average' or"
+            raise ValueError("model must be 'sample_average' or "
                              "'constant_step_size'")
         if type(cues) is not tuple:
             raise TypeError('cues must be a tuple')
@@ -193,7 +193,7 @@ def card_cue_bandit_experiment():
     globals().update(locals())
 
 
-def fit_behavioral_data(bounds=None, cues=((0,),(1,),(0,1)),
+def fit_behavioral_data(bounds=None, cues=((0,),(1,)),
                         do_plot=False, model='sample-average'):
     """Fit a model for all subjects.
 
@@ -317,10 +317,12 @@ def make_learner_df():
     return df_learners, df_n_optimum
 
 def fit_all():
-    bounds = ((0,1), (0,1))
-    #fit_behavioral_data(model='constant_step_size')
+    bounds = ((0,1), (0,2))
     fit_behavioral_data(bounds=bounds, model='constant_step_size',
                         do_plot=False)
+
+    # fit_behavioral_data(model='sample_average',
+    #                     do_plot=False)
 
 def classifier():
     """Create an HPS classifier using the alpha-beta."""
