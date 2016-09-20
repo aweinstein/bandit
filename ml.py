@@ -235,8 +235,9 @@ def fit_behavioral_data(bounds=None, cues=((0,),(1,)),
     cues_str = ''.join(str(cues_label[a]) for a in cues)
     bound_str = 'unbounded' if bounds is None else 'bounded'
     fn = os.path.join(DF_Dir,
-                      'fit_{}_{}_{}.csv'.format(model, cues_str, bound_str))
-    df.to_csv(fn, index=False)
+                      'fit_{}_{}_{}'.format(model, cues_str, bound_str))
+    df.to_excel(fn + '.xlsx', index=False)
+    df.to_pickle(fn + '.pkl')
     print('File saved as', fn)
     if do_plot:
         fn = 'nllf_{}_{}_{}.pdf'.format(cues_str, bound_str, model)
@@ -351,4 +352,5 @@ def classifier():
 if __name__ == '__main__':
     # bounds = ((0,1), (0,2))
     # fit_single_subject(int(sys.argv[1]), bounds, cues=(0,1))
-    classifier()
+    # classifier()
+    fit_all()
