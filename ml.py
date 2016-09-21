@@ -325,10 +325,10 @@ def fit_all():
     # fit_behavioral_data(model='sample_average',
     #                     do_plot=False)
 
-def classifier():
+def tree_classifier():
     """Create an HPS classifier using the alpha-beta."""
-    fn_fit = os.path.join(DF_Dir, 'fit_constant_step_size_0101_bounded.csv')
-    fit = pd.read_csv(fn_fit)
+    fn_fit = os.path.join(DF_Dir, 'fit_constant_step_size_01_bounded.pkl')
+    fit = pd.read_pickle(fn_fit)
     print('Using data from', fn_fit)
     X = fit[['0_alpha', '0_beta', '1_alpha', '1_beta']].values
     y = fit['HPS_level'].values
@@ -336,7 +336,7 @@ def classifier():
     clf = tree.DecisionTreeClassifier(max_depth=4)
     clf.fit(X, y)
     from sklearn.externals.six import StringIO
-    import pydot_ng as pydot
+    import pydotplus as pydot
     dot_data = StringIO()
     feature_names = ['a0', 'b0', 'a1', 'b1']
     target_names = ['low', 'medium', 'high']
@@ -346,11 +346,13 @@ def classifier():
                          filled=True, rounded=True,
                          special_characters=True)
     graph = pydot.graph_from_dot_data(dot_data.getvalue())
-    graph.write_pdf("iris.pdf")
+    fn = os.path.join(Fig_Dir, 'hpf_tree_classifier.pdf')
+    graph.write_pdf(fn)
+    print('Tree saved as', fn)
     globals().update(locals())
 
 if __name__ == '__main__':
     # bounds = ((0,1), (0,2))
     # fit_single_subject(int(sys.argv[1]), bounds, cues=(0,1))
-    # classifier()
-    fit_all()
+    #fit_all()
+    classifier()
