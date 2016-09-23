@@ -351,8 +351,39 @@ def tree_classifier():
     print('Tree saved as', fn)
     globals().update(locals())
 
+def clustering():
+    fn_fit = os.path.join(DF_Dir, 'fit_constant_step_size_01_bounded.pkl')
+    fit = pd.read_pickle(fn_fit)
+    print('Using data from', fn_fit)
+    X = fit[['0_alpha', '0_beta', '1_alpha', '1_beta']].values
+    y = fit['HPS_level'].values
+
+    from sklearn.cluster import KMeans, DBSCAN
+
+    # SSD = []
+    # ns = np.arange(2, 40)
+    # for n in ns:
+    #     estimator = KMeans(n_clusters=n)
+    #     estimator.fit(X)
+    #     SSD.append(estimator.inertia_)
+
+    # plt.close('all')
+    # plt.plot(ns, SSD, 'o-')
+    # plt.show()
+
+    #db = DBSCAN(eps=0.3, min_samples=10).fit(X)
+    db = DBSCAN().fit(X)
+    labels = db.labels_
+    # Number of clusters in labels, ignoring noise if present.
+    n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+    print(n_clusters_)
+
+    globals().update(locals())
+
 if __name__ == '__main__':
     # bounds = ((0,1), (0,2))
     # fit_single_subject(int(sys.argv[1]), bounds, cues=(0,1))
     #fit_all()
-    classifier()
+    #tree_classifier()
+
+    clustering()
