@@ -1,9 +1,12 @@
 import os
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from sklearn import tree
 from sklearn.cluster import KMeans, DBSCAN
+from sklearn import linear_model
+from sklearn.metrics import mean_squared_error
 
 Fig_Dir = 'figs'
 DF_Dir = 'df'
@@ -61,5 +64,47 @@ def clustering():
     print(n_clusters_)
 
 
+# Probar con RANSAC
+# Probar con ridge regression, lasso regression
+# Theil-Sen
+# Polinomial features plus lasso
+
+def regression():
+
+    fn_fit = os.path.join(DF_Dir, 'fit_constant_step_size_01_bounded.pkl')
+    fit = pd.read_pickle(fn_fit)
+    print('Using data from', fn_fit)
+    X = fit[['0_alpha', '0_beta', '1_alpha', '1_beta']].values
+    y = fit['HPS'].values
+
+    reg = linear_model.LinearRegression()
+    reg.fit(X, y)
+    y_hat = reg.predict(X)
+
+    model_ransac = linear_model.RANSACRegressor(linear_model.LinearRegression())
+    model_ransac.fit(X, y)
+    y_hat_ransac = model_ransac.predict(X)
+
+    model_theilsen = linear_model.TheilSenRegressor()
+    model_theilsen.fit(X,y)
+    y_hat_theilsen = model_theilsen.predict(X)
+
+    mse_lr = mean_squared_error(y, y_hat)
+    mse_ransac = mean_squared_error(y, y_hat_ransac)
+    mse_theil_ransac = mean_squared_error(y, y_hat_theilsen)
+
+    i_sort = np.argsort(y)
+    plt.close('all')
+    plt.plot(y[i_sort], 'o', label='y')
+    plt.plot(y_hat[i_sort], 'x', label='y_hat')
+    plt.plot(y_hat_ransac[i_sort], '+', label='y ransac')
+    plt.plot(y_hat_theilsen[i_sort], '<', label='y thiel')
+    plt.legend(loc='best')
+    plt.show()
+
+    globals().update(locals())
+
+
+
 if __name__ == '__main__':
-    pass
+    regression()
