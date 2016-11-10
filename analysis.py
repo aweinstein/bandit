@@ -64,10 +64,22 @@ def clustering():
     print(n_clusters_)
 
 
-# Probar con RANSAC
+# Probar con RANSAC: Not good idea. It removes outliers. In our case we don't
+# know if outliers are real outliers. Better to use TheilSenRegressor or
+# HuberRegressor. See
+# http://scikit-learn.org/stable/auto_examples/linear_model/plot_robust_fit.html
+
+# Probar con k-fold / leave-one-out
+# p-value / standard error
 # Probar con ridge regression, lasso regression
-# Theil-Sen
-# Polinomial features plus lasso
+# Add graph of residuals
+# F-test on the residuals
+# Estimate confidence intervals using simulations. See Sec. 2.3, p. 20 of
+# A. Gelman book
+
+# Narrative: Fit parameters for value-based model (alpha/beta) model, and then
+# fit parameters to policy-based model. The fit regression to HPS for both
+# models and compare.
 
 def regression():
 
@@ -89,9 +101,10 @@ def regression():
     model_theilsen.fit(X,y)
     y_hat_theilsen = model_theilsen.predict(X)
 
-    mse_lr = mean_squared_error(y, y_hat)
-    mse_ransac = mean_squared_error(y, y_hat_ransac)
-    mse_theil_ransac = mean_squared_error(y, y_hat_theilsen)
+    mse = dict(
+        mse_lr=mean_squared_error(y, y_hat),
+        mse_ransac=mean_squared_error(y, y_hat_ransac),
+        mse_theil=mean_squared_error(y, y_hat_theilsen))
 
     i_sort = np.argsort(y)
     plt.close('all')
@@ -100,6 +113,8 @@ def regression():
     plt.plot(y_hat_ransac[i_sort], '+', label='y ransac')
     plt.plot(y_hat_theilsen[i_sort], '<', label='y thiel')
     plt.legend(loc='best')
+    plt.ylabel('HPS')
+    plt.xlabel('index')
     plt.show()
 
     globals().update(locals())
