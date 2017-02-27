@@ -7,17 +7,17 @@ Some multi-armed bandit code. The code
 
 File description:
 
-```
-models.py -- Simulation of different environment-agent pairs. Each pair has a fixed structure.
-contextual_bandit.py -- Simulation of the contextual bandit experiment. The environment has the structure of the real experiment. It is possible to define different action rules.
-ml.py -- Maximum Likelihood estimation of bandit parameters.
-analysis.py -- Analysis of the models fitted to the experimental data.
-bandit.py -- Reproduce results from Sutton's book.
-parse.py -- Parse experimental data.
-vis.py -- Visualization of results.
-utils.py -- Some useful functions.
-filter.py -- Filter parameters for filtfilt (doesn't really belongs here).
-```
+
+```models.py``` -- Simulation of different environment-agent pairs. Each pair has a fixed structure.
+```contextual_bandit.py``` -- Simulation of the contextual bandit experiment. The environment has the structure of the real experiment. It is possible to define different action rules.
+```ml.py``` -- Maximum Likelihood estimation of bandit parameters.
+```analysis.py``` -- Analysis of the models fitted to the experimental data.
+```bandit.py``` -- Reproduce results from Sutton's book.
+```parse.py``` -- Parse experimental data.
+```vis.py``` -- Visualization of results.
+```utils.py``` -- Some useful functions.
+```filter.py``` -- Filter parameters for filtfilt (doesn't really belongs here).
+
 
 
 [1] N. D. Daw, "Trial-by-trial data analysis using computational models,"
