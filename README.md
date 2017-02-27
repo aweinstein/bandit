@@ -5,7 +5,7 @@ Some multi-armed bandit code. The code
 - Reproduce some of the results of [1].
 - Fit model using [1] of experimental data.
 
-File description:
+File descriptions:
 
 
 * ```models.py``` -- Simulation of different environment-agent pairs. Each pair has a fixed structure.
