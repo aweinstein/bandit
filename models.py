@@ -130,10 +130,7 @@ class BanditCardCues(object):
         return self.cue
 
     def reward(self, action):
-        """Return reward given the action.
-
-        The bandit has no cues.
-        """
+        """Return reward given the action and current cue."""
         p_win = self.probs[self.cue]
         if action in self.actions:
             if np.random.rand() < p_win:
