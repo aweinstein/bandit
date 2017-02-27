@@ -8,7 +8,7 @@ Some multi-armed bandit code. The code
 File description:
 
 ```
-analysis.py -- Analysis of the models fitted for the experimental data.
+analysis.py -- Analysis of the models fitted to the experimental data.
 bandit.py -- Reproduce results from Sutton's book.
 contextual_bandit.py -- Simulation of the actual experiment.
 filter.py -- Filter parameters for filtfilt (doesn't really belongs here).
