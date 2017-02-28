@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 from matplotlib import cm
-from matplotlib.colors import Normalize
 
 Fig_Dir = 'figs'
 DF_Dir = 'df'
@@ -79,10 +78,32 @@ def scatter_alpha_beta_hps():
     x, y = df_ab[x_key], df_ab[y_key]
     hps = df_ab['HPS_q']
     plt.close('all')
-    fig = plt.scatter(x, y, c=hps, cmap=cm.jet)
+    plt.scatter(x, y, c=hps, cmap=cm.jet)
     # plt.xlabel('$\alpha$')
     # plt.ylabel('$\beta$')
     plt.show()
+
+def plot_simple_bandit(df):
+    """Plot the trials of a two state bandit.
+
+    The df must have columns 'action', 'reward', 'Q(0)', and 'Q(1)'.
+    """
+    _, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
+    pos_zero = df.loc[df['action'] == 0].index
+    pos_one = df.loc[df['action'] == 1].index
+
+    ax0.eventplot(pos_zero, linewidths=0.8, label='0')
+    ax0.eventplot(pos_one, linewidths=0.8, color='r', label='1')
+    ax0.set_yticks([])
+    ax0.legend(loc='upper right', frameon=True)
+    ax0.set_ylabel('action')
+
+    ax1.plot(df['Q(0)'], label='Q(0)')
+    ax1.plot(df['Q(1)'], label='Q(1)')
+    ax1.legend(loc='upper right', frameon=True)
+    ax1.set_xlabel('trial')
+    plt.show()
+
 
 if __name__ == '__main__':
     plot_actions()

@@ -175,7 +175,7 @@ class AgentCardCues(object):
         return df
 
 
-if __name__ == '__main__':
+def bandit_card_cues_experiment():
     bandit = BanditCardCues()
     agent = AgentCardCues(bandit, alpha=0.05)
     trials = 300
@@ -184,3 +184,10 @@ if __name__ == '__main__':
 
     df = agent.get_df()
     df.to_pickle('df/agent_cues.pkl')
+
+if __name__ == '__main__':
+    bandit = Bandit()
+    agent = Agent(bandit)
+    trials = 300
+    for _ in range(300):
+        agent.run()
