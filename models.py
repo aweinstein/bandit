@@ -9,9 +9,13 @@ from utils import softmax
 class Bandit(object):
     """Bandit used in [1] as an example.
 
+    The bandit has two levers. Reward is 0 or 1. Lever 0 has a probability of
+    winning of 0.8, and lever 1 a probability of winning of 0.2.
+
     [1] N. D. Daw, "Trial-by-trial data analysis using computational models,"
     Decision making, affect, and learning: Attention and performance XXIII,
     vol. 23, p. 1, 2011.
+
     """
     def __init__(self):
         self.n = 2
@@ -54,12 +58,15 @@ class Agent(object):
         actions = (0, 1)
         action = np.random.choice(actions, p=p)
         reward = self.bandit.reward(action)
-        self.Q[action] += self.alpha * (reward - self.Q[action])
+        self.update_Q(action, reward)
 
         self.log['reward'].append(reward)
         self.log['action'].append(action)
         self.log['Q(0)'].append(self.Q[0])
         self.log['Q(1)'].append(self.Q[1])
+
+    def update_Q(self, action, reward):
+        self.Q[action] += self.alpha * (reward - self.Q[action])
 
     def get_df(self):
         columns = ['action', 'reward', 'Q(0)', 'Q(1)']
@@ -186,8 +193,11 @@ def bandit_card_cues_experiment():
     df.to_pickle('df/agent_cues.pkl')
 
 if __name__ == '__main__':
+    np.random.seed(42)
     bandit = Bandit()
     agent = Agent(bandit)
     trials = 300
     for _ in range(300):
         agent.run()
+    import vis
+    vis.plot_simple_bandit(agent.get_df())
