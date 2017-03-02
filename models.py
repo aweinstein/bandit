@@ -46,30 +46,66 @@ class Agent(object):
     vol. 23, p. 1, 2011.
     """
 
-    def __init__(self, bandit, alpha=0.25, beta=1):
+    def __init__(self, bandit, alpha=0.25, beta=1, model='value'):
         self.bandit = bandit
-        self.Q = np.zeros(2)
         self.alpha = alpha
         self.beta = beta
-        self.log = {'reward':[], 'action':[], 'Q(0)':[], 'Q(1)':[]}
+        self.Q = np.zeros(2)
+        self.pi = np.zeros(2)
+        self.log = defaultdict(list)
+        self.model = model
+        if model not in ('value', 'policy'):
+            raise ValueError("`model` must be one of `value`, `policy`, "
+                             "got %r" % model)
+        if model == 'value':
+            self.update = self.update_value
+            self.choose_action = self.choose_action_value
+
+        else:
+            self.update = self.update_policy
+            self.choose_action = self.choose_action_policy
 
     def run(self):
-        p = softmax(self.Q, self.beta)
+        p = self.choose_action()
         actions = (0, 1)
         action = np.random.choice(actions, p=p)
         reward = self.bandit.reward(action)
-        self.update_Q(action, reward)
+        self.update(action, reward)
 
         self.log['reward'].append(reward)
         self.log['action'].append(action)
         self.log['Q(0)'].append(self.Q[0])
         self.log['Q(1)'].append(self.Q[1])
+        self.log['pi(0)'].append(self.pi[0])
+        self.log['pi(1)'].append(self.pi[1])
 
-    def update_Q(self, action, reward):
+    def choose_action_value(self):
+        """Compute actions probabilities for value learning."""
+        return softmax(self.Q, self.beta)
+
+    def choose_action_policy(self):
+        """Compute actions probabilities for value learning."""
+        return softmax(self.pi, self.beta)
+
+    def update_value(self, action, reward):
+        """Value model update rule.
+
+        See Eq. (2) of [1].
+        """
         self.Q[action] += self.alpha * (reward - self.Q[action])
 
+    def update_policy(self, action, reward):
+        """Value model update rule.
+
+        See Eq. (12) of [1].
+        """
+        self.pi[action] += 0.1 * (reward - 0.5)
+
     def get_df(self):
-        columns = ['action', 'reward', 'Q(0)', 'Q(1)']
+        if self.model == 'value':
+            columns = ['action', 'reward', 'Q(0)', 'Q(1)']
+        else:
+            columns = ['action', 'reward', 'pi(0)', 'pi(1)']
         df = pd.DataFrame(self.log, columns=columns)
         return df
 
@@ -195,9 +231,10 @@ def bandit_card_cues_experiment():
 if __name__ == '__main__':
     np.random.seed(42)
     bandit = Bandit()
-    agent = Agent(bandit)
+    agent = Agent(bandit, model='policy')
     trials = 300
     for _ in range(300):
         agent.run()
+    df = agent.get_df()
     import vis
     vis.plot_simple_bandit(agent.get_df())

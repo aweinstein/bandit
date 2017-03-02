@@ -98,8 +98,13 @@ def plot_simple_bandit(df):
     ax0.legend(loc='upper right', frameon=True)
     ax0.set_ylabel('action')
 
-    ax1.plot(df['Q(0)'], label='Q(0)')
-    ax1.plot(df['Q(1)'], label='Q(1)')
+    if 'Q(0)' in df.columns:
+        ax1.plot(df['Q(0)'], label='Q(0)')
+        ax1.plot(df['Q(1)'], label='Q(1)')
+    elif 'pi(0)' in df.columns:
+        ax1.plot(df['pi(0)'], label='pi(0)')
+        ax1.plot(df['pi(1)'], label='pi(1)')
+
     ax1.legend(loc='upper right', frameon=True)
     ax1.set_xlabel('trial')
     plt.show()
