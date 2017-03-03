@@ -64,6 +64,7 @@ class Agent(object):
         else:
             self.update = self.update_policy
             self.choose_action = self.choose_action_policy
+            self.reward_hat = 0.1 * np.ones(4)
 
     def run(self):
         p = self.choose_action()
@@ -78,6 +79,7 @@ class Agent(object):
         self.log['Q(1)'].append(self.Q[1])
         self.log['pi(0)'].append(self.pi[0])
         self.log['pi(1)'].append(self.pi[1])
+        self.log['r_hat'].append(self.reward_hat.mean())
 
     def choose_action_value(self):
         """Compute actions probabilities for value learning."""
@@ -99,13 +101,16 @@ class Agent(object):
 
         See Eq. (12) of [1].
         """
-        self.pi[action] += 0.1 * (reward - 0.5)
+        self.reward_hat = np.roll(self.reward_hat, -1)
+        self.reward_hat[-1] = reward
+        #self.pi[action] += 0.1 * (reward - 1)
+        self.pi[action] += 0.1 * (reward - self.reward_hat.mean())
 
     def get_df(self):
         if self.model == 'value':
             columns = ['action', 'reward', 'Q(0)', 'Q(1)']
         else:
-            columns = ['action', 'reward', 'pi(0)', 'pi(1)']
+            columns = ['action', 'reward', 'pi(0)', 'pi(1)', 'r_hat']
         df = pd.DataFrame(self.log, columns=columns)
         return df
 
