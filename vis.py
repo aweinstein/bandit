@@ -91,12 +91,19 @@ def plot_simple_bandit(df):
     _, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
     pos_zero = df.loc[df['action'] == 0].index
     pos_one = df.loc[df['action'] == 1].index
+    ax0.eventplot(pos_zero, linewidths=0.8, lineoffsets=2.5, color='g',
+                  label='L')
+    ax0.eventplot(pos_one, linewidths=0.8, lineoffsets=2.5, color='m',
+                  label='R')
 
-    ax0.eventplot(pos_zero, linewidths=0.8, label='0')
-    ax0.eventplot(pos_one, linewidths=0.8, color='r', label='1')
-    ax0.set_yticks([])
+    pos_zero = df.loc[df['reward'] == 0].index
+    pos_one = df.loc[df['reward'] == 1].index
+    ax0.eventplot(pos_zero, linewidths=0.8, color='r', label='0')
+    ax0.eventplot(pos_one, linewidths=0.8, color='b', label='1')
+
+    ax0.set_yticks([1, 2.5])
+    ax0.set_yticklabels(['reward', 'action'])
     ax0.legend(loc='upper right', frameon=True)
-    ax0.set_ylabel('action')
 
     if 'Q(0)' in df.columns:
         ax1.plot(df['Q(0)'], label='Q(0)')
