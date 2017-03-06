@@ -91,9 +91,9 @@ def plot_simple_bandit(df):
     _, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
     pos_zero = df.loc[df['action'] == 0].index
     pos_one = df.loc[df['action'] == 1].index
-    ax0.eventplot(pos_zero, linewidths=0.8, lineoffsets=2.5, color='g',
+    ax0.eventplot(pos_zero, linewidths=0.8, lineoffsets=2.5, colors=['C0'],
                   label='L')
-    ax0.eventplot(pos_one, linewidths=0.8, lineoffsets=2.5, color='m',
+    ax0.eventplot(pos_one, linewidths=0.8, lineoffsets=2.5, colors=['C1'],
                   label='R')
 
     pos_zero = df.loc[df['reward'] == 0].index
