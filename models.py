@@ -1,5 +1,6 @@
 from collections import defaultdict
 from itertools import product
+from types import MethodType
 
 import numpy as np
 import pandas as pd
@@ -12,17 +13,31 @@ class Bandit(object):
     The bandit has two levers. Reward is 0 or 1. Lever 0 has a probability of
     winning of 0.8, and lever 1 a probability of winning of 0.2.
 
+    The bandit behavior can be generalized by passing a function that compute
+    the reward given the action and the trial number.
+
     [1] N. D. Daw, "Trial-by-trial data analysis using computational models,"
     Decision making, affect, and learning: Attention and performance XXIII,
     vol. 23, p. 1, 2011.
 
     """
-    def __init__(self):
+    def __init__(self, reward_func=None):
+        """Set `reward_func` to a function with parameters (self, action, trial)
+        to define a new reward structure.
+        """
         self.n = 2
+        self.trial = 0
+        if reward_func is not None:
+            self.compute_reward = MethodType(reward_func, self)
 
     def reward(self, action):
-        """Return reward given the action.
+        """Return reward given the action."""
+        self.trial += 1
+        r = self.compute_reward(action, self.trial)
+        return r
 
+    def compute_reward(self, action, trial):
+        """Compute the reward.
             Action 0 has probability 0.8 of winning 1.
             Action 1 has probability 0.2 of winning 0.
         """
@@ -75,11 +90,13 @@ class Agent(object):
 
         self.log['reward'].append(reward)
         self.log['action'].append(action)
-        self.log['Q(0)'].append(self.Q[0])
-        self.log['Q(1)'].append(self.Q[1])
-        self.log['pi(0)'].append(self.pi[0])
-        self.log['pi(1)'].append(self.pi[1])
-        self.log['r_hat'].append(self.reward_hat.mean())
+        if self.model == 'value':
+            self.log['Q(0)'].append(self.Q[0])
+            self.log['Q(1)'].append(self.Q[1])
+        elif self.model == 'policy':
+            self.log['pi(0)'].append(self.pi[0])
+            self.log['pi(1)'].append(self.pi[1])
+            self.log['r_hat'].append(self.reward_hat.mean())
 
     def choose_action_value(self):
         """Compute actions probabilities for value learning."""
@@ -233,13 +250,38 @@ def bandit_card_cues_experiment():
     df = agent.get_df()
     df.to_pickle('df/agent_cues.pkl')
 
-if __name__ == '__main__':
+def simple_bandit_experiment():
     np.random.seed(42)
-    bandit = Bandit()
-    agent = Agent(bandit, model='policy')
+    bandit =Bandit()
+    agent = Agent(bandit, model='policy', beta=1.)
     trials = 300
-    for _ in range(300):
+    for _ in range(trials):
         agent.run()
     df = agent.get_df()
     import vis
     vis.plot_simple_bandit(agent.get_df())
+    return df
+
+
+def bee_experiment():
+    def bee_reward(self, action, trial):
+        if trial <= 100:
+            rewards = (1, 2)
+        else:
+            rewards = (2, 1)
+        return rewards[action] * np.random.choice(2)
+
+    np.random.seed(42)
+    bandit = Bandit(bee_reward)
+    agent = Agent(bandit, model='value', alpha=0.1, beta=1.)
+    trials = 200
+    for _ in range(trials):
+        agent.run()
+    df = agent.get_df()
+    import vis
+    vis.plot_simple_bandit(agent.get_df())
+    return df
+
+if __name__ == '__main__':
+    print('Running the bees experiment')
+    df = bee_experiment()
