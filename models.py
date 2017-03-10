@@ -103,7 +103,7 @@ class Agent(object):
         return softmax(self.Q, self.beta)
 
     def choose_action_policy(self):
-        """Compute actions probabilities for value learning."""
+        """Compute actions probabilities for policy learning."""
         return softmax(self.pi, self.beta)
 
     def update_value(self, action, reward):
@@ -271,15 +271,36 @@ def bee_experiment():
             rewards = (2, 1)
         return rewards[action] * np.random.choice(2)
 
-    np.random.seed(42)
+    #np.random.seed(42)
     bandit = Bandit(bee_reward)
-    agent = Agent(bandit, model='value', alpha=0.1, beta=1.)
+    agent = Agent(bandit, model='value', alpha=0.1, beta=2.)
     trials = 200
     for _ in range(trials):
         agent.run()
     df = agent.get_df()
-    import vis
-    vis.plot_simple_bandit(agent.get_df())
+    #compute sum visits
+    actions = df['action']
+    trials = len(df)
+    sv_0, sv_1 = np.zeros(trials), np.zeros(trials)
+    if actions[0] == 0:
+        sv_0[0] = 1
+    else:
+        sv_1[0] = 1
+    for i, a in actions[1:].iteritems():
+        if a == 0:
+            sv_0[i] = sv_0[i-1] + 1
+            sv_1[i] = sv_1[i-1]
+        else:
+            sv_1[i] = sv_1[i-1] + 1
+            sv_0[i] = sv_0[i-1]
+
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.plot(sv_0)
+    plt.plot(sv_1)
+    plt.show()
+    # import vis
+    # vis.plot_simple_bandit(agent.get_df())
     return df
 
 if __name__ == '__main__':
