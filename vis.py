@@ -1,9 +1,11 @@
+from itertools import cycle
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 from matplotlib import cm
+from cycler import cycler
 
 Fig_Dir = 'figs'
 DF_Dir = 'df'
@@ -86,7 +88,8 @@ def scatter_alpha_beta_hps():
 def plot_simple_bandit(df):
     """Plot the trials of a two state bandit.
 
-    The df must have columns 'action', 'reward', 'Q(0)', and 'Q(1)'.
+    The df must have columns 'action', 'reward', ('Q(0)', and 'Q(1)') or (pi(0)
+    and pi(1).
     """
     _, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
     pos_zero = df.loc[df['action'] == 0].index
@@ -96,15 +99,23 @@ def plot_simple_bandit(df):
     ax0.eventplot(pos_one, linewidths=1.5, lineoffsets=2.5, colors=['C2'],
                   label='R')
 
-    pos_zero = df.loc[df['reward'] == 0].index
-    pos_one = df.loc[df['reward'] == 1].index
-    ax0.eventplot(pos_zero, linewidths=1.5, color=['C3'], label='0')
-    ax0.eventplot(pos_one, linewidths=1.5, color=['C4'], label='1')
+    #cc = cycler(color=['C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9'])
+    colors=['C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
+    for r, c in zip(np.sort(df['reward'].unique()), cycle(colors)):
+        pos = df.loc[df['reward'] == r].index
+        ax0.eventplot(pos, linewidths=1.5, label=str(r), color=[c])
+
+    # pos_zero = df.loc[df['reward'] == 0].index
+    # ax0.eventplot(pos_zero, linewidths=1.5, color=['C3'], label='0')
+    # pos_one = df.loc[df['reward'] == 1].index
+    # ax0.eventplot(pos_one, linewidths=1.5, color=['C4'], label='1')
+
 
     ax0.set_yticks([1, 2.5])
     ax0.set_yticklabels(['reward', 'action'])
     ax0.legend(loc='upper right', frameon=True)
 
+    # Plot values or policies
     if 'Q(0)' in df.columns:
         ax1.plot(df['Q(0)'], label='Q(0)')
         ax1.plot(df['Q(1)'], label='Q(1)')
