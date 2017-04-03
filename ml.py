@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from collections import defaultdict
-from matplotlib import cm
 
 from utils import save_figs_as_pdf, softmax
 from models import Bandit, BanditCard, BanditCardCues
@@ -24,7 +23,7 @@ DF_Dir = 'df'
 
 class ML(object):
     def __init__(self, df, n_actions, cues=None, bounds=None,
-                 model='sample_average'):
+                 model='constant_step_size'):
         """The DataFrame df must contain columns 'action' and reward'.
         If `len(cues) > 1`, then it also must include the 'cue' column.
 
@@ -33,8 +32,6 @@ class ML(object):
         if model not in ('sample_average', 'constant_step_size'):
             raise ValueError("model must be 'sample_average' or "
                              "'constant_step_size'")
-        if type(cues) is not tuple:
-            raise TypeError('cues must be a tuple')
         self.n_actions = n_actions
         self.model = model
         if cues is None:
@@ -45,6 +42,8 @@ class ML(object):
                 self.cues = (0,)
                 df['cue'] = 0
         else:
+            if type(cues) is not tuple:
+                raise TypeError('cues must be a tuple')
             self.cues = cues
         if type(cues) is int:
             self.cues = (cues,)
@@ -88,7 +87,7 @@ class ML(object):
 
     def plot_ml(self, ax, alpha, beta, alpha_hat, beta_hat):
         from itertools import product
-        n = 50
+        n = 10#50
         alpha_max = 0.2
         beta_max = 1.3
         if alpha is not None:
@@ -104,11 +103,11 @@ class ML(object):
         for i, (a, b) in enumerate(product(alphas, betas)):
             Z[i] = self.neg_log_likelihood((a, b))
         Z.resize((len(alphas), len(betas)))
-        ax.contourf(Alpha, Beta, Z.T, 50, cmap=cm.jet)
+        ax.contourf(Alpha, Beta, Z.T, 50, cmap='jet')
         if alpha is not None:
             ax.plot(alpha, beta, 'rs', ms=5)
         if alpha_hat is not None:
-            ax.plot(alpha_hat, beta_hat, 'r+', ms=10)
+            ax.plot(alpha_hat, beta_hat, 'ro', ms=5)
         ax.set_xlabel(r'$\alpha$', fontsize=20)
         ax.set_ylabel(r'$\beta$', fontsize=20)
         return
@@ -131,6 +130,7 @@ def simple_bandit_experiment():
     alpha = 0.1
     beta = 1.2
     print('alpha: {:.2f} beta: {:.2f}\n'.format(alpha, beta))
+    np.random.seed(42)
     agent = Agent(b, alpha, beta)
     trials = 1000
 
@@ -142,6 +142,7 @@ def simple_bandit_experiment():
     alpha_hat, beta_hat = r.x
     print(r)
     fig, ax = plt.subplots(1, 1)
+    print('Plotting the results...')
     ml.plot_ml(ax, alpha, beta, alpha_hat, beta_hat)
     plt.show()
 
@@ -328,4 +329,5 @@ def fit_all():
 if __name__ == '__main__':
     # bounds = ((0,1), (0,2))
     # fit_single_subject(int(sys.argv[1]), bounds, cues=(0,1))
-    fit_all()
+    #fit_all()
+    simple_bandit_experiment()
