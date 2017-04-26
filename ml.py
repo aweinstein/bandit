@@ -27,9 +27,9 @@ class ML(object):
         """The DataFrame df must contain columns 'action' and reward'.
         If `len(cues) > 1`, then it also must include the 'cue' column.
 
-        model can be 'sample_average' or 'constant_step_size'
+        model can be 'sample_average', 'constant_step_size', or 'policy'
         """
-        if model not in ('sample_average', 'constant_step_size'):
+        if model not in ('sample_average', 'constant_step_size', 'policy'):
             raise ValueError("model must be 'sample_average' or "
                              "'constant_step_size'")
         self.n_actions = n_actions
@@ -49,10 +49,44 @@ class ML(object):
             self.cues = (cues,)
         self.df = df
         self.bounds = bounds
+        # Initial conditions passed to the optimization function
+        if self.model in ('sample_average', 'constant_step_size'):
+            self.opt_ic = [0.1, 0.5]
+        elif self.model == 'policy':
+            #self.opt_ic = [0.1, 0.5, 1.]
+            self.opt_ic = [0.5]
+            #self.opt_ic = [0.1, 0.5]
 
-    def neg_log_likelihood(self, alphabeta):
+
+    def neg_log_likelihood(self, params):
+        """Compute the negative log likelihood of the parameters.
+
+        The data consist of a sequence of (cue,action,reward) observations.
+        """
+        # NOTE: This method probably needs refactoring to manage the different
+        # models in a more elegant way.
         df = self.df
-        alpha, beta = alphabeta
+        if self.model in ('sample_average', 'constant_step_size'):
+            alpha, beta = params
+        elif self.model == 'policy':
+            ###### assume beta is the only parameter to fit
+            beta = params[0]
+            r_bar = 0.5
+            alpha = 0.25
+            ###### assume r_bar is the only parameter to fit
+            # beta = 0.1
+            # r_bar = params[0]
+            # alpha = 0.25
+            ###### assume alpha is the only parameter to fit
+            # beta = 0.1
+            # r_bar = 0.5
+            # alpha = params[0]
+            ###### assume alpha and beta are the only parameters to fit
+            # r_bar = 0.5
+            # alpha, beta = params
+
+            #alpha, beta, r_bar = params
+
         df = self.df[self.df['cue'].isin(self.cues)]
         actions, rewards = df['action'].values, df['reward'].values
         cues = df['cue'].values
@@ -63,17 +97,32 @@ class ML(object):
             if self.model == 'sample_average':
                 Q[cue][action] += alpha * (reward - Q[cue][action]) / k
                 k += 1
-            else:
+            elif self.model == 'constant_step_size':
                 Q[cue][action] += alpha * (reward - Q[cue][action])
+            elif self.model == 'policy_':
+                # We are reusing Q, but the right name should be pi
+                probs = softmax(Q[cue], beta)
+                for a in (0,1):  # (0, 1) should be something like self.actions
+                    indicator = 1 if a == action else 0
+                    Q[cue][a] += alpha * (reward - r_bar) * (indicator - probs[a])
+            elif self.model == 'policy': # Daw simplified rule
+                # We are reusing Q, but the right name should be pi
+                Q[cue][action] += alpha * (reward - r_bar)
+            else:
+                print('Something bad happen :(')
+
             prob_log += np.log(softmax(Q[cue], beta)[action])
+
         return -prob_log
 
-    def ml_estimation(self, method_name='Nelder-Mead'):
+    #def ml_estimation(self, method_name='Nelder-Mead'):
+    #def ml_estimation(self, method_name='BFGS'):
+    def ml_estimation(self, method_name=None):
         if self.bounds is None:
-            r = minimize(self.neg_log_likelihood, [0.1,0.1],
+            r = minimize(self.neg_log_likelihood, self.opt_ic,
                          method=method_name)
         else:
-            r = minimize(self.neg_log_likelihood, [0.1,0.1],
+            r = minimize(self.neg_log_likelihood, self.opt_ic,
                               method='L-BFGS-B',
                               bounds=self.bounds)
         return r
@@ -127,24 +176,38 @@ class ML(object):
 
 def simple_bandit_experiment():
     b = Bandit()
-    alpha = 0.1
-    beta = 1.2
+    alpha = 0.2
+    beta = 0.3
+    model = 'policy'
     print('alpha: {:.2f} beta: {:.2f}\n'.format(alpha, beta))
-    np.random.seed(42)
-    agent = Agent(b, alpha, beta)
-    trials = 1000
+    # Optimizing only beta and:
+    # - Seed 2 and trials 300 produces 'Desired error ...'.
+    # - Same seed with more than 300 trials produces succesful optimization.
+    np.random.seed(2)
+    trials = 301
+    agent = Agent(b, alpha, beta, model=model)
+
 
     for _ in range(trials):
         agent.run()
     df = agent.get_df()
-    ml = ML(df, 2)
+    ml = ML(df, 2, model=model)
     r = ml.ml_estimation()
-    alpha_hat, beta_hat = r.x
+    #alpha_hat, beta_hat = r.x[:2]
     print(r)
-    fig, ax = plt.subplots(1, 1)
-    print('Plotting the results...')
-    ml.plot_ml(ax, alpha, beta, alpha_hat, beta_hat)
+    plt.close('all')
+    betas = np.linspace(0, 1)
+    mlf = np.frompyfunc(lambda x:ml.neg_log_likelihood([x]), 1, 1)
+    nll = mlf(betas)
+    plt.plot(betas, nll)
+    plt.axvline(beta, c='r')
+    plt.axvline(r.x)
     plt.show()
+    # fig, ax = plt.subplots(1, 1)
+    # print('Plotting the results...')
+    # ml.plot_ml(ax, alpha, beta, alpha_hat, beta_hat)
+    # plt.show()
+    globals().update(locals())
 
 def card_bandit_experiment():
     b = BanditCard()

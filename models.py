@@ -78,7 +78,8 @@ class Agent(object):
             print(f'Value update agent with alpha={alpha} and beta={beta}')
 
         else:
-            self.update = self.update_policy
+            #self.update = self.update_policy
+            self.update = self.update_policy_daw
             self.choose_action = self.choose_action_policy
             self.reward_hat = 0.1 * np.ones(4)
             print(f'Policy update agent with alpha={alpha} and beta={beta}')
@@ -90,6 +91,7 @@ class Agent(object):
         reward = self.bandit.reward(action)
         self.update(action, reward)
 
+        # log the results
         self.log['reward'].append(reward)
         self.log['action'].append(action)
         if self.model == 'value':
@@ -122,7 +124,8 @@ class Agent(object):
         """
         self.reward_hat = np.roll(self.reward_hat, -1)
         self.reward_hat[-1] = reward
-        self.pi[action] += 0.1 * (reward - self.reward_hat.mean())
+        # self.pi[action] += 0.1 * (reward - self.reward_hat.mean())
+        self.pi[action] += self.alpha * (reward - 0.5)
 
     def update_policy(self, action, reward):
         """Value model update rule.
@@ -131,7 +134,8 @@ class Agent(object):
         """
         self.reward_hat = np.roll(self.reward_hat, -1)
         self.reward_hat[-1] = reward
-        r_bar = self.reward_hat.mean()
+        #r_bar = self.reward_hat.mean()
+        r_bar = 0.5
         probs = softmax(self.pi, self.beta)
         for a in (0,1):  # (0, 1) should be something like self.actions
             indicator = 1 if a == action else 0
@@ -265,15 +269,17 @@ def bandit_card_cues_experiment():
     df.to_pickle('df/agent_cues.pkl')
 
 def simple_bandit_experiment():
-    np.random.seed(42)
+    #np.random.seed(42)
     bandit =Bandit()
-    agent = Agent(bandit, model='policy', beta=1.)
+    agent = Agent(bandit, model='policy', beta=0.2)
     trials = 300
     for _ in range(trials):
         agent.run()
     df = agent.get_df()
     import vis
-    vis.plot_simple_bandit(agent.get_df())
+    import matplotlib.pyplot as plt
+    plt.close('all')
+    vis.plot_simple_bandit(df)
     return df
 
 
@@ -288,7 +294,7 @@ def bee_experiment():
     #np.random.seed(42)
     bandit = Bandit(bee_reward)
     #agent = Agent(bandit, model='value', alpha=0.1, beta=1.)
-    agent = Agent(bandit, model='policy', alpha=0.25, beta=0.5)
+    agent = Agent(bandit, model='policy', alpha=0.4, beta=0.2)
     trials = 200
     for _ in range(trials):
         agent.run()
@@ -323,5 +329,7 @@ def bee_experiment():
     return df
 
 if __name__ == '__main__':
-    print('Running the bees experiment')
-    df = bee_experiment()
+    # print('Running the bees experiment')
+    # df = bee_experiment()
+    print('Running the simple bandit experiment')
+    df = simple_bandit_experiment()
