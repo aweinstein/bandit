@@ -61,7 +61,22 @@ class Agent(object):
     vol. 23, p. 1, 2011.
     """
 
-    def __init__(self, bandit, alpha=0.25, beta=1, model='value'):
+    def __init__(self, bandit, alpha=0.25, beta=1, r_bar=None, model='value'):
+        """Agent that interact with a two-arms bandit.
+
+        Parameters
+        ----------
+        bandit: Bandit
+            Bandit with wich the agent will interact.
+        alpha, beta: float
+            Agent parameters
+        r_bar: float or None
+            Value to use as the mean reward with policy based models. If None
+             (default value), estimate the mean reward using the recived rewards.
+        model: string
+            Learning paradigm used by the agent. Must be in
+            ['value', 'policy', 'policy_daw']
+        """
         self.bandit = bandit
         self.alpha = alpha
         self.beta = beta
@@ -69,20 +84,23 @@ class Agent(object):
         self.pi = np.zeros(2)
         self.log = defaultdict(list)
         self.model = model
-        if model not in ('value', 'policy'):
+        if model not in ('value', 'policy', 'policy_daw'):
             raise ValueError("`model` must be one of `value`, `policy`, "
-                             "got %r" % model)
+                             "`policy_daw`, got %r" % model)
         if model == 'value':
             self.update = self.update_value
             self.choose_action = self.choose_action_value
             print(f'Value update agent with alpha={alpha} and beta={beta}')
-
         else:
-            #self.update = self.update_policy
-            self.update = self.update_policy_daw
+            if model == 'policy':
+                self.update = self.update_policy
+            else:
+                self.update = self.update_policy_daw
             self.choose_action = self.choose_action_policy
-            self.reward_hat = 0.1 * np.ones(4)
-            print(f'Policy update agent with alpha={alpha} and beta={beta}')
+            self.last_rewards = 0.1 * np.ones(4)
+            self.r_bar = r_bar
+            print(f'Policy update agent with alpha={alpha}, beta={beta} and '
+                  f'r_bar={r_bar}')
 
     def run(self):
         p = self.choose_action()
@@ -97,10 +115,10 @@ class Agent(object):
         if self.model == 'value':
             self.log['Q(0)'].append(self.Q[0])
             self.log['Q(1)'].append(self.Q[1])
-        elif self.model == 'policy':
+        elif (self.model == 'policy') or (self.model == 'policy_daw'):
             self.log['pi(0)'].append(self.pi[0])
             self.log['pi(1)'].append(self.pi[1])
-            self.log['r_hat'].append(self.reward_hat.mean())
+            self.log['r_bar'].append(self.last_rewards.mean())
 
     def choose_action_value(self):
         """Compute actions probabilities for value learning."""
@@ -117,25 +135,31 @@ class Agent(object):
         """
         self.Q[action] += self.alpha * (reward - self.Q[action])
 
-    def update_policy_daw(self, action, reward):
-        """Value model update rule.
+    def get_r_bar(self, reward):
+        self.last_rewards = np.roll(self.last_rewards, -1)
+        self.last_rewards[-1] = reward
+        if self.r_bar is None:
+            r_bar = self.last_rewards.mean()
+        else:
+            r_bar = self.r_bar
+        return r_bar
 
-        See Eq. (12) of [1].
+    def update_policy_daw(self, action, reward):
+        """Policy model update rule.
+
+        See Eq. (12) of [1]. We include a learning rate alpha multiplying
+        the factor (reward - r_bar).
         """
-        self.reward_hat = np.roll(self.reward_hat, -1)
-        self.reward_hat[-1] = reward
-        # self.pi[action] += 0.1 * (reward - self.reward_hat.mean())
-        self.pi[action] += self.alpha * (reward - 0.5)
+        r_bar = self.get_r_bar(reward)
+        self.pi[action] += self.alpha * (reward - r_bar)
 
     def update_policy(self, action, reward):
-        """Value model update rule.
+        """Policy model update rule.
 
-        Using Dayan and Abbot or Sutton and Barto formulation.
+        Using the policy update rule described by Dayan and Abbot, and by
+        Sutton and Barto.
         """
-        self.reward_hat = np.roll(self.reward_hat, -1)
-        self.reward_hat[-1] = reward
-        #r_bar = self.reward_hat.mean()
-        r_bar = 0.5
+        r_bar = self.get_r_bar(reward)
         probs = softmax(self.pi, self.beta)
         for a in (0,1):  # (0, 1) should be something like self.actions
             indicator = 1 if a == action else 0
@@ -145,7 +169,7 @@ class Agent(object):
         if self.model == 'value':
             columns = ['action', 'reward', 'Q(0)', 'Q(1)']
         else:
-            columns = ['action', 'reward', 'pi(0)', 'pi(1)', 'r_hat']
+            columns = ['action', 'reward', 'pi(0)', 'pi(1)', 'r_bar']
         df = pd.DataFrame(self.log, columns=columns)
         return df
 
@@ -271,7 +295,7 @@ def bandit_card_cues_experiment():
 def simple_bandit_experiment():
     #np.random.seed(42)
     bandit =Bandit()
-    agent = Agent(bandit, model='policy', beta=0.2)
+    agent = Agent(bandit, model='policy_daw', alpha=0.15, beta=0.2, r_bar=0.5)
     trials = 300
     for _ in range(trials):
         agent.run()
