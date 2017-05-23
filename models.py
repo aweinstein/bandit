@@ -90,7 +90,8 @@ class Agent(object):
         if model == 'value':
             self.update = self.update_value
             self.choose_action = self.choose_action_value
-            print(f'Value update agent with alpha={alpha} and beta={beta}')
+            print(f'Running value update agent with alpha={alpha} and '
+                  f'beta={beta}\n')
         else:
             if model == 'policy':
                 self.update = self.update_policy
@@ -99,8 +100,9 @@ class Agent(object):
             self.choose_action = self.choose_action_policy
             self.last_rewards = 0.1 * np.ones(4)
             self.r_bar = r_bar
-            print(f'Policy update agent with alpha={alpha}, beta={beta} and '
-                  f'r_bar={r_bar}')
+            daw = '(Daw)' if model == 'policy_daw' else '(Dayan)'
+            print(f'Running policy {daw} update agent with alpha={alpha}, '
+                  f'beta={beta} and r_bar={r_bar}\n')
 
     def run(self):
         p = self.choose_action()

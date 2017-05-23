@@ -23,13 +23,16 @@ DF_Dir = 'df'
 
 class ML(object):
     def __init__(self, df, n_actions, cues=None, bounds=None,
-                 model='constant_step_size'):
+                 model='constant_step_size',
+                 param_value={'alpha':None, 'beta':None, 'r_bar':None}):
         """The DataFrame df must contain columns 'action' and reward'.
         If `len(cues) > 1`, then it also must include the 'cue' column.
 
-        model can be 'sample_average', 'constant_step_size', or 'policy'
+        model can be 'sample_average', 'constant_step_size', 'policy', or
+        'policy_daw'.
         """
-        if model not in ('sample_average', 'constant_step_size', 'policy'):
+        if model not in ('sample_average', 'constant_step_size', 'policy',
+                         'policy_daw'):
             raise ValueError("model must be 'sample_average' or "
                              "'constant_step_size'")
         self.n_actions = n_actions
@@ -52,40 +55,35 @@ class ML(object):
         # Initial conditions passed to the optimization function
         if self.model in ('sample_average', 'constant_step_size'):
             self.opt_ic = [0.1, 0.5]
-        elif self.model == 'policy':
-            #self.opt_ic = [0.1, 0.5, 1.]
-            self.opt_ic = [0.5]
-            #self.opt_ic = [0.1, 0.5]
-
+        elif (self.model == 'policy') or (self.model == 'policy_daw'):
+            self.param_value = param_value
+            n_unknow = list(param_value.values()).count(None)
+            if n_unknow == 0:
+                raise ValueError('At least one unknown parameter is needed')
+            self.opt_ic = np.random.uniform(0.1, 0.2, n_unknow)
+        print(f'ML estimation model:{model} param:{param_value}\n')
 
     def neg_log_likelihood(self, params):
         """Compute the negative log likelihood of the parameters.
 
         The data consist of a sequence of (cue,action,reward) observations.
         """
-        # NOTE: This method probably needs refactoring to manage the different
-        # models in a more elegant way.
         df = self.df
         if self.model in ('sample_average', 'constant_step_size'):
             alpha, beta = params
-        elif self.model == 'policy':
-            ###### assume beta is the only parameter to fit
-            beta = params[0]
-            r_bar = 0.5
-            alpha = 0.25
-            ###### assume r_bar is the only parameter to fit
-            # beta = 0.1
-            # r_bar = params[0]
-            # alpha = 0.25
-            ###### assume alpha is the only parameter to fit
-            # beta = 0.1
-            # r_bar = 0.5
-            # alpha = params[0]
-            ###### assume alpha and beta are the only parameters to fit
-            # r_bar = 0.5
-            # alpha, beta = params
-
-            #alpha, beta, r_bar = params
+        elif (self.model == 'policy') or (self.model == 'policy_daw'):
+            if self.param_value['alpha'] == None:
+                alpha, params = params[0], params[1:]
+            else:
+                alpha = self.param_value['alpha']
+            if self.param_value['beta'] == None:
+                beta, params = params[0], params[1:]
+            else:
+                beta = self.param_value['beta']
+            if self.param_value['r_bar'] == None:
+                r_bar, params = params[0], params[1:]
+            else:
+                r_bar = self.param_value['r_bar']
 
         df = self.df[self.df['cue'].isin(self.cues)]
         actions, rewards = df['action'].values, df['reward'].values
@@ -99,13 +97,13 @@ class ML(object):
                 k += 1
             elif self.model == 'constant_step_size':
                 Q[cue][action] += alpha * (reward - Q[cue][action])
-            elif self.model == 'policy_':
+            elif self.model == 'policy':
                 # We are reusing Q, but the right name should be pi
                 probs = softmax(Q[cue], beta)
                 for a in (0,1):  # (0, 1) should be something like self.actions
                     indicator = 1 if a == action else 0
                     Q[cue][a] += alpha * (reward - r_bar) * (indicator - probs[a])
-            elif self.model == 'policy': # Daw simplified rule
+            elif self.model == 'policy_daw': # Daw simplified rule
                 # We are reusing Q, but the right name should be pi
                 Q[cue][action] += alpha * (reward - r_bar)
             else:
@@ -116,8 +114,8 @@ class ML(object):
         return -prob_log
 
     #def ml_estimation(self, method_name='Nelder-Mead'):
-    #def ml_estimation(self, method_name='BFGS'):
-    def ml_estimation(self, method_name=None):
+    def ml_estimation(self, method_name='BFGS'):
+    #def ml_estimation(self, method_name=None):
         if self.bounds is None:
             r = minimize(self.neg_log_likelihood, self.opt_ic,
                          method=method_name)
@@ -136,7 +134,7 @@ class ML(object):
 
     def plot_ml(self, ax, alpha, beta, alpha_hat, beta_hat):
         from itertools import product
-        n = 10#50
+        n = 30#50
         alpha_max = 0.2
         beta_max = 1.3
         if alpha is not None:
@@ -178,35 +176,37 @@ def simple_bandit_experiment():
     b = Bandit()
     alpha = 0.2
     beta = 0.3
-    model = 'policy'
-    print('alpha: {:.2f} beta: {:.2f}\n'.format(alpha, beta))
+    r_bar = 0.5
+    model = 'policy_daw'
     # Optimizing only beta and:
     # - Seed 2 and trials 300 produces 'Desired error ...'.
     # - Same seed with more than 300 trials produces succesful optimization.
     np.random.seed(2)
-    trials = 301
+    trials = 100
     agent = Agent(b, alpha, beta, model=model)
-
 
     for _ in range(trials):
         agent.run()
     df = agent.get_df()
-    ml = ML(df, 2, model=model)
+    ml = ML(df, 2, model=model,
+            param_value={'alpha':None, 'beta':None, 'r_bar':0.5})
     r = ml.ml_estimation()
-    #alpha_hat, beta_hat = r.x[:2]
     print(r)
     plt.close('all')
-    betas = np.linspace(0, 1)
-    mlf = np.frompyfunc(lambda x:ml.neg_log_likelihood([x]), 1, 1)
-    nll = mlf(betas)
-    plt.plot(betas, nll)
-    plt.axvline(beta, c='r')
-    plt.axvline(r.x)
-    plt.show()
-    # fig, ax = plt.subplots(1, 1)
-    # print('Plotting the results...')
-    # ml.plot_ml(ax, alpha, beta, alpha_hat, beta_hat)
+    ######################   Plot when fitting only one parameter
+    # betas = np.linspace(0, 1)
+    # mlf = np.frompyfunc(lambda x:ml.neg_log_likelihood([x]), 1, 1)
+    # nll = mlf(betas)
+    # plt.plot(betas, nll)
+    # plt.axvline(beta, c='r')
+    # plt.axvline(r.x)
     # plt.show()
+    ######################  Plot when  fitting alpha and beta
+    alpha_hat, beta_hat = r.x[:2]
+    fig, ax = plt.subplots(1, 1)
+    print('Plotting the results...')
+    ml.plot_ml(ax, alpha, beta, alpha_hat, beta_hat)
+    plt.show()
     globals().update(locals())
 
 def card_bandit_experiment():
